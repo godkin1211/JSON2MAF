@@ -1,6 +1,0 @@
-benchmark_test.jl
-compare_performance.jl
-check_transcript_fields.jl
-convert_comments.py
-.claude
-.DS_Store
