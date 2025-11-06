@@ -340,10 +340,54 @@ end
 Simplify HGVS protein notation to short form
 Example: p.Gly12Asp → p.G12D
 """
+const AMINO_ACID_MAP = Dict(
+    "Ala" => "A", "Arg" => "R", "Asn" => "N", "Asp" => "D", "Cys" => "C",
+    "Glu" => "E", "Gln" => "Q", "Gly" => "G", "His" => "H", "Ile" => "I",
+    "Leu" => "L", "Lys" => "K", "Met" => "M", "Phe" => "F", "Pro" => "P",
+    "Ser" => "S", "Thr" => "T", "Trp" => "W", "Tyr" => "Y", "Val" => "V",
+    "Ter" => "*"
+)
+
+"""
+    simplify_hgvsp(hgvsp::String) -> String
+
+Simplify HGVS protein notation to short form
+Example: p.Gly12Asp → p.G12D
+"""
 function simplify_hgvsp(hgvsp::String)::String
-    # Simple implementation: return original value
-    # Full implementation would need amino acid three-letter to single-letter mapping
-    return hgvsp
+    if !startswith(hgvsp, "p.")
+        return hgvsp
+    end
+
+    # Substitution: p.Gly12Asp
+    sub_match = match(r"p\.([A-Z][a-z]{2})(\d+)([A-Z][a-z]{2})", hgvsp)
+    if sub_match !== nothing
+        ref = get(AMINO_ACID_MAP, sub_match.captures[1], sub_match.captures[1])
+        pos = sub_match.captures[2]
+        alt = get(AMINO_ACID_MAP, sub_match.captures[3], sub_match.captures[3])
+        return "p.$(ref)$(pos)$(alt)"
+    end
+
+    # Deletion: p.Gly12del
+    del_match = match(r"p\.([A-Z][a-z]{2})(\d+)del", hgvsp)
+    if del_match !== nothing
+        ref = get(AMINO_ACID_MAP, del_match.captures[1], del_match.captures[1])
+        pos = del_match.captures[2]
+        return "p.$(ref)$(pos)del"
+    end
+
+    # Insertion: p.Gly12_Ala13insAsp
+    ins_match = match(r"p\.([A-Z][a-z]{2})(\d+)_([A-Z][a-z]{2})(\d+)ins([A-Z][a-z]{2})", hgvsp)
+    if ins_match !== nothing
+        ref1 = get(AMINO_ACID_MAP, ins_match.captures[1], ins_match.captures[1])
+        pos1 = ins_match.captures[2]
+        ref2 = get(AMINO_ACID_MAP, ins_match.captures[3], ins_match.captures[3])
+        pos2 = ins_match.captures[4]
+        ins = get(AMINO_ACID_MAP, ins_match.captures[5], ins_match.captures[5])
+        return "p.$(ref1)$(pos1)_$(ref2)$(pos2)ins$(ins)"
+    end
+
+    return hgvsp  # Return original if no match
 end
 
 """
@@ -374,7 +418,13 @@ function select_canonical_transcript(transcripts::Vector{TranscriptAnnotation}):
         return nothing
     end
 
-    # Priority 1: RefSeq transcript (starting with NM_)
+    # Priority 1: MANE Select transcript
+    mane_transcripts = filter(t -> get(t, :is_mane_select, false), transcripts)
+    if !isempty(mane_transcripts)
+        return mane_transcripts[1]
+    end
+
+    # Priority 2: RefSeq transcript (starting with NM_)
     # RefSeq NM_ is manually reviewed canonical transcript
     for trans in transcripts
         if trans.id !== nothing && startswith(trans.id, "NM_")
@@ -382,7 +432,7 @@ function select_canonical_transcript(transcripts::Vector{TranscriptAnnotation}):
         end
     end
 
-    # Priority 2: Select based on consequence severity
+    # Priority 3: Select based on consequence severity
     best_trans = transcripts[1]
     best_severity = 1000  # Initialize with a large number
 
@@ -498,6 +548,8 @@ function get(transcript::TranscriptAnnotation, key::Symbol, default)
         return transcript.hgvsc !== nothing ? transcript.hgvsc : default
     elseif key == :hgvs_protein
         return transcript.hgvsp !== nothing ? transcript.hgvsp : default
+    elseif key == :is_mane_select
+        return transcript.is_mane_select !== nothing ? transcript.is_mane_select : default
     elseif key == :is_canonical
         # TranscriptAnnotation doesn't have is_canonical field, return default
         return default

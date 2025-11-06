@@ -1,7 +1,7 @@
 """
 maf_writer_tests.jl
 
-測試 MAF 檔案寫入功能
+Test MAF file writing functionality
 """
 
 using Test
@@ -9,9 +9,9 @@ using JSON2MAF
 using DataFrames
 using CSV
 
-@testset "MAF 寫入測試" begin
+@testset "MAF Writer Tests" begin
 
-    @testset "MAF 表頭" begin
+    @testset "MAF Header" begin
         header = maf_header()
 
         @test length(header) == 29
@@ -22,8 +22,8 @@ using CSV
         @test "PrimateAI_Score" in header
     end
 
-    @testset "MAFRecord 轉 Row" begin
-        # 創建完整的 MAFRecord
+    @testset "MAFRecord to Row Conversion" begin
+        # Create a complete MAFRecord
         record = MAFRecord(
             hugo_symbol = "TP53",
             chromosome = "chr17",
@@ -68,8 +68,8 @@ using CSV
         @test row[23] == "0.85"
     end
 
-    @testset "空值格式化" begin
-        # 創建有空值的 MAFRecord
+    @testset "Empty Value Formatting" begin
+        # Create a MAFRecord with empty values
         record = MAFRecord(
             hugo_symbol = "TP53",
             chromosome = "chr17",
@@ -104,7 +104,7 @@ using CSV
 
         row = mafrecord_to_row(record)
 
-        # 空值應該轉為 "."
+        # Empty values should be converted to "."
         @test row[11] == "."  # tumor_sample_barcode
         @test row[13] == "."  # hgvsp
         @test row[16] == "."  # dbsnp_rs
@@ -115,8 +115,8 @@ using CSV
         @test row[26] == "."  # gnomad_af (nothing)
     end
 
-    @testset "寫入單一記錄" begin
-        # 創建測試記錄
+    @testset "Write Single Record" begin
+        # Create a test record
         record = MAFRecord(
             hugo_symbol = "TP53",
             chromosome = "chr17",
@@ -149,13 +149,13 @@ using CSV
             vaf = "0.45"
         )
 
-        # 寫入臨時檔案
+        # Write to a temporary file
         tmpfile = tempname() * ".maf"
         write_maf_file(tmpfile, record)
 
         @test isfile(tmpfile)
 
-        # 讀取並驗證（強制所有欄位為字串）
+        # Read and validate (force all columns to be strings)
         df = CSV.read(tmpfile, DataFrame, delim='\t', types=String)
         @test nrow(df) == 1
         @test ncol(df) == 29
@@ -166,12 +166,12 @@ using CSV
         @test df[1, :ClinVar_ID] == "RCV000012345"
         @test df[1, :PrimateAI_Score] == "0.85"
 
-        # 清理
+        # Clean up
         rm(tmpfile)
     end
 
-    @testset "寫入多筆記錄" begin
-        # 創建多筆測試記錄
+    @testset "Write Multiple Records" begin
+        # Create multiple test records
         records = [
             MAFRecord(
                 hugo_symbol = "TP53",
@@ -205,13 +205,13 @@ using CSV
             )
         ]
 
-        # 寫入臨時檔案
+        # Write to a temporary file
         tmpfile = tempname() * ".maf"
         write_maf_file(tmpfile, records)
 
         @test isfile(tmpfile)
 
-        # 讀取並驗證（強制所有欄位為字串）
+        # Read and validate (force all columns to be strings)
         df = CSV.read(tmpfile, DataFrame, delim='\t', types=String)
         @test nrow(df) == 3
         @test df[1, :Hugo_Symbol] == "TP53"
@@ -219,29 +219,29 @@ using CSV
         @test df[3, :Hugo_Symbol] == "EGFR"
         @test df[2, :Variant_Classification] == "Nonsense_Mutation"
 
-        # 清理
+        # Clean up
         rm(tmpfile)
     end
 
-    @testset "寫入空記錄列表" begin
+    @testset "Write Empty Record List" begin
         tmpfile = tempname() * ".maf"
         write_maf_file(tmpfile, MAFRecord[])
 
         @test isfile(tmpfile)
 
-        # 應該只有表頭
+        # Should only have the header
         lines = readlines(tmpfile)
         @test length(lines) == 1
         @test startswith(lines[1], "Hugo_Symbol\t")
 
-        # 清理
+        # Clean up
         rm(tmpfile)
     end
 
-    @testset "追加模式" begin
+    @testset "Append Mode" begin
         tmpfile = tempname() * ".maf"
 
-        # 寫入第一筆記錄
+        # Write the first record
         record1 = MAFRecord(
             hugo_symbol = "TP53",
             chromosome = "chr17",
@@ -250,7 +250,7 @@ using CSV
         )
         write_maf_file(tmpfile, record1)
 
-        # 追加第二筆記錄
+        # Append the second record
         record2 = MAFRecord(
             hugo_symbol = "BRCA1",
             chromosome = "chr17",
@@ -259,17 +259,17 @@ using CSV
         )
         write_maf_file(tmpfile, record2, append=true)
 
-        # 驗證有兩筆記錄（強制所有欄位為字串）
+        # Validate that there are two records (force all columns to be strings)
         df = CSV.read(tmpfile, DataFrame, delim='\t', types=String)
         @test nrow(df) == 2
         @test df[1, :Hugo_Symbol] == "TP53"
         @test df[2, :Hugo_Symbol] == "BRCA1"
 
-        # 清理
+        # Clean up
         rm(tmpfile)
     end
 
-    @testset "欄位順序正確性" begin
+    @testset "Column Order Correctness" begin
         record = MAFRecord(
             hugo_symbol = "TEST",
             chromosome = "chr1",
@@ -283,11 +283,11 @@ using CSV
         tmpfile = tempname() * ".maf"
         write_maf_file(tmpfile, record)
 
-        # 讀取第一行（表頭）
+        # Read the first line (header)
         lines = readlines(tmpfile)
         header = split(lines[1], '\t')
 
-        # 驗證重要欄位的位置
+        # Validate the position of important columns
         @test header[1] == "Hugo_Symbol"
         @test header[23] == "PrimateAI_Score"
         @test header[24] == "DANN_Score"
@@ -295,7 +295,7 @@ using CSV
         @test header[26] == "gnomAD_AF"
         @test header[29] == "VAF"
 
-        # 清理
+        # Clean up
         rm(tmpfile)
     end
 end

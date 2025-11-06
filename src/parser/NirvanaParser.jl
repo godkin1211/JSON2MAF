@@ -42,22 +42,30 @@ function parse_header(header_json)::NirvanaHeader
 end
 
 """
-    parse_position(pos_json) -> VariantPosition
+    parse_position(pos_json) -> Union{VariantPosition, Nothing}
 
 Parse a single variant position
 """
-function parse_position(pos_json)::VariantPosition
+function parse_position(pos_json)::Union{VariantPosition, Nothing}
     # Basic information
     chromosome = pos_json.chromosome
     position = pos_json.position
     ref_allele = pos_json.refAllele
+    
+    if !haskey(pos_json, :altAlleles) || isempty(pos_json.altAlleles)
+        @warn "No altAlleles found for position $(chromosome):$(position). Skipping."
+        return nothing
+    end
     alt_alleles = collect(pos_json.altAlleles)
 
     # Parse filters field
     filters = haskey(pos_json, :filters) ? collect(String, pos_json.filters) : String["PASS"]
 
     # Sample information - take first sample's data
-    sample = if haskey(pos_json, :samples) && length(pos_json.samples) > 0
+    if haskey(pos_json, :samples) && length(pos_json.samples) > 1
+        @warn "Multiple samples found at position $(chromosome):$(position). Only the first sample will be processed."
+    end
+    sample = if haskey(pos_json, :samples) && !isempty(pos_json.samples)
         pos_json.samples[1]
     else
         nothing
@@ -69,78 +77,60 @@ function parse_position(pos_json)::VariantPosition
                          collect(Float64, sample.variantFrequencies) : nothing
 
     # Variant annotations - process first variant (usually only one altAllele)
-    variants_data = haskey(pos_json, :variants) ? pos_json.variants : []
-
-    if length(variants_data) > 0
-        variant = variants_data[1]
-
-        # Parse transcripts
-        transcripts = haskey(variant, :transcripts) ?
-                     parse_transcripts(variant.transcripts) :
-                     TranscriptAnnotation[]
-
-        # Parse ClinVar
-        clinvar = haskey(variant, :clinvar) ?
-                 parse_clinvar_entries(variant.clinvar) :
-                 ClinVarEntry[]
-
-        # Parse COSMIC
-        cosmic = haskey(variant, :cosmic) ?
-                parse_cosmic_entries(variant.cosmic) :
-                CosmicEntry[]
-
-        # Parse population frequencies
-        pop_freqs = parse_population_frequencies(variant)
-
-        # Extract predictive scores
-        primate_ai_3d = extract_primate_ai_3d_score(variant)
-        primate_ai = extract_primate_ai_score(variant)
-        dann_score = haskey(variant, :dannScore) ? Float64(variant.dannScore) : nothing
-        revel_score = extract_revel_score(variant)
-
-        # dbSNP IDs
-        dbsnp_ids = haskey(variant, :dbsnp) ? collect(String, variant.dbsnp) : String[]
-
-        return VariantPosition(
-            chromosome,
-            position,
-            position,  # end position (same for SNVs)
-            ref_allele,
-            alt_alleles[1],  # First alternate allele
-            variant.variantType,
-            filters,  # VCF filters field
-            total_depth,
-            variant_frequencies,
-            transcripts,
-            clinvar,
-            cosmic,
-            pop_freqs,
-            primate_ai_3d,
-            primate_ai,
-            dann_score,
-            revel_score,
-            dbsnp_ids
-        )
-    else
-        # Case with no variant annotations
-        return VariantPosition(
-            chromosome,
-            position,
-            position,
-            ref_allele,
-            alt_alleles[1],
-            "SNV",  # Default
-            filters,  # VCF filters field
-            total_depth,
-            variant_frequencies,
-            TranscriptAnnotation[],
-            ClinVarEntry[],
-            CosmicEntry[],
-            PopulationFrequency[],
-            nothing, nothing, nothing, nothing,
-            String[]
-        )
+    if !haskey(pos_json, :variants) || isempty(pos_json.variants)
+        @warn "No variant annotations found for position $(chromosome):$(position). Skipping."
+        return nothing
     end
+    variants_data = pos_json.variants
+    variant = variants_data[1]
+
+    # Parse transcripts
+    transcripts = haskey(variant, :transcripts) ?
+                 parse_transcripts(variant.transcripts) :
+                 TranscriptAnnotation[]
+
+    # Parse ClinVar
+    clinvar = haskey(variant, :clinvar) ?
+             parse_clinvar_entries(variant.clinvar) :
+             ClinVarEntry[]
+
+    # Parse COSMIC
+    cosmic = haskey(variant, :cosmic) ?
+            parse_cosmic_entries(variant.cosmic) :
+            CosmicEntry[]
+
+    # Parse population frequencies
+    pop_freqs = parse_population_frequencies(variant)
+
+    # Extract predictive scores
+    primate_ai_3d = extract_primate_ai_3d_score(variant)
+    primate_ai = extract_primate_ai_score(variant)
+    dann_score = haskey(variant, :dannScore) ? Float64(variant.dannScore) : nothing
+    revel_score = extract_revel_score(variant)
+
+    # dbSNP IDs
+    dbsnp_ids = haskey(variant, :dbsnp) ? collect(String, variant.dbsnp) : String[]
+
+    return VariantPosition(
+        chromosome,
+        position,
+        position,  # end position (same for SNVs)
+        ref_allele,
+        alt_alleles[1],  # First alternate allele
+        variant.variantType,
+        filters,  # VCF filters field
+        total_depth,
+        variant_frequencies,
+        transcripts,
+        clinvar,
+        cosmic,
+        pop_freqs,
+        primate_ai_3d,
+        primate_ai,
+        dann_score,
+        revel_score,
+        dbsnp_ids
+    )
 end
 
 """
@@ -155,18 +145,24 @@ function parse_position_field(val)::Union{Int, Nothing}
     elseif val isa Integer
         return val
     elseif val isa String
+        parsed_val = nothing
         # If contains '/', take the first number
         if contains(val, "/")
             first_part = split(val, "/")[1]
-            return tryparse(Int, first_part)
+            parsed_val = tryparse(Int, first_part)
         elseif contains(val, "-")
             # If is a range (e.g., "100-105"), take the first number
             first_part = split(val, "-")[1]
-            return tryparse(Int, first_part)
+            parsed_val = tryparse(Int, first_part)
         else
             # Directly try to parse
-            return tryparse(Int, val)
+            parsed_val = tryparse(Int, val)
         end
+
+        if parsed_val === nothing
+            @warn "Could not parse position field: $(val)"
+        end
+        return parsed_val
     else
         return nothing
     end
@@ -213,7 +209,8 @@ function parse_transcripts(transcripts_json)::Vector{TranscriptAnnotation}
             cds_pos,
             protein_pos,
             get(t, :hgvsc, nothing),
-            get(t, :hgvsp, nothing)
+            get(t, :hgvsp, nothing),
+            get(t, :isManeSelect, nothing)
         ))
     end
 
@@ -469,6 +466,12 @@ function process_nirvana_parallel_with_stats(
 
             # Parse variant
             variant = parse_position(pos)
+            if variant === nothing
+                lock(progress_lock) do
+                    next!(progress)
+                end
+                continue
+            end
 
             # Call callback (pass thread ID)
             callback(variant, idx, thread_id)
@@ -509,7 +512,7 @@ Quickly check if variant passes prefilter and return failure reason (for statist
 """
 function check_prefilter_with_stats(pos_json, config::FilterConfig)::PrefilterResult
     # 1. Check sequencing quality
-    if haskey(pos_json, :samples) && length(pos_json.samples) > 0
+    if haskey(pos_json, :samples) && !isempty(pos_json.samples)
         sample = pos_json.samples[1]
 
         # Check depth
@@ -521,7 +524,7 @@ function check_prefilter_with_stats(pos_json, config::FilterConfig)::PrefilterRe
         end
 
         # Check VAF
-        if haskey(sample, :variantFrequencies) && length(sample.variantFrequencies) > 0
+        if haskey(sample, :variantFrequencies) && !isempty(sample.variantFrequencies)
             vaf = sample.variantFrequencies[1]
             if vaf < config.min_variant_frequency
                 return PrefilterResult(false, :failed_vaf)
@@ -530,7 +533,7 @@ function check_prefilter_with_stats(pos_json, config::FilterConfig)::PrefilterRe
     end
 
     # 2. Check population frequency
-    if haskey(pos_json, :variants) && length(pos_json.variants) > 0
+    if haskey(pos_json, :variants) && !isempty(pos_json.variants)
         variant = pos_json.variants[1]
 
         # Check gnomad-exome EAS AF

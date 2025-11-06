@@ -85,6 +85,7 @@ struct TranscriptAnnotation
     protein_pos::Union{Int, Nothing}
     hgvsc::Union{String, Nothing}                 # HGVS coding
     hgvsp::Union{String, Nothing}                 # HGVS protein
+    is_mane_select::Union{Bool, Nothing}          # MANE Select transcript
 end
 
 """
