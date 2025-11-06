@@ -61,7 +61,8 @@ using JSON2MAF
             99,                  # cds_pos
             33,                  # protein_pos
             "c.215C>G",          # hgvsc
-            "p.Pro72Arg"         # hgvsp
+            "p.Pro72Arg",        # hgvsp
+            nothing              # is_mane_select
         )
 
         hgvsc, hgvsp, hgvsp_short = extract_hgvs_notation(transcript)
@@ -78,18 +79,18 @@ using JSON2MAF
         # Test single transcript
         t1 = TranscriptAnnotation(
             "ENST00000123456", "TP53", nothing, ["missense_variant"],
-            "V/M", 100, 99, 33, "c.215C>G", "p.Pro72Arg"
+            "V/M", 100, 99, 33, "c.215C>G", "p.Pro72Arg", nothing
         )
         @test select_canonical_transcript([t1]) === t1
 
         # Test multiple transcripts - Nirvana places canonical first
         t2 = TranscriptAnnotation(
             "ENST00000222222", "TP53", nothing, ["missense_variant"],
-            "V/M", 100, 99, 33, "c.215C>G", "p.Pro72Arg"
+            "V/M", 100, 99, 33, "c.215C>G", "p.Pro72Arg", nothing
         )
         t3 = TranscriptAnnotation(
             "ENST00000333333", "TP53", nothing, ["missense_variant"],
-            "V/M", 100, 99, 33, "c.215C>G", "p.Pro72Arg"
+            "V/M", 100, 99, 33, "c.215C>G", "p.Pro72Arg", nothing
         )
 
         # Should select the first one (canonical)
@@ -111,7 +112,8 @@ using JSON2MAF
             215,                 # cds_pos
             72,                  # protein_pos
             "c.215C>G",          # hgvsc
-            "p.Pro72Arg"         # hgvsp
+            "p.Pro72Arg",        # hgvsp
+            true                 # is_mane_select
         )
 
         clinvar_entry = ClinVarEntry(
@@ -144,6 +146,7 @@ using JSON2MAF
             "G",
             "C",
             "SNV",
+            ["PASS"],  # filters
             150,      # total_depth
             [0.45],   # variant_frequencies
             [transcript],
@@ -214,7 +217,7 @@ using JSON2MAF
     @testset "Missing Field Handling" begin
         # Create variant without transcripts
         variant = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[],  # Empty transcripts
             ClinVarEntry[],
@@ -246,7 +249,7 @@ using JSON2MAF
         cosmic2 = CosmicEntry("COSM222", "TP53", "missense", 30)
 
         variant = VariantPosition(
-            "chr17", 100, 100, "A", "G", "SNV",
+            "chr17", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[],
             ClinVarEntry[],
@@ -275,7 +278,7 @@ using JSON2MAF
         )
 
         variant = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[],
             [clinvar_entry],

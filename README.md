@@ -4,7 +4,7 @@ A high-performance Julia tool for filtering pathogenic variants from Illumina Ni
 
 [![Julia](https://img.shields.io/badge/Julia-1.10+-blue.svg)](https://julialang.org/)
 [![License](https://img.shields.io/badge/License-Internal-red.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-435%2F435%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-366%20passing%2C%2016%20skipped-brightgreen.svg)]()
 
 ## Overview
 
@@ -326,7 +326,7 @@ JSON2MAF/
 │   └── json2maf.jl              # Main executable
 ├── test/
 │   ├── runtests.jl              # Test runner
-│   └── *_tests.jl               # Test suites (435 tests)
+│   └── *_tests.jl               # Test suites (382 tests total)
 └── docs/
     ├── CLAUDE.md                # Development guide
     ├── Requirement.md           # Requirements specification
@@ -341,7 +341,7 @@ Run the comprehensive test suite:
 julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
-Current status: ✅ **435/435 tests passing**
+Current status: ✅ **366/366 tests passing** (16 tests marked as skipped/broken)
 
 Test coverage includes:
 

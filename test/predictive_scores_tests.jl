@@ -15,7 +15,7 @@ using JSON2MAF
     @testset "Score Extraction Tests" begin
         # Test complete scores
         variant_full = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -33,7 +33,7 @@ using JSON2MAF
 
         # Test missing scores
         variant_empty = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -50,7 +50,7 @@ using JSON2MAF
     @testset "PrimateAI Version Priority" begin
         # When both exist, prioritize PrimateAI-3D
         variant = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -64,7 +64,7 @@ using JSON2MAF
 
         # Use old version when only old version exists
         variant_old = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -82,7 +82,7 @@ using JSON2MAF
 
         # Has COSMIC entry
         variant_with_cosmic = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], [cosmic_entry],
             PopulationFrequency[],
@@ -94,7 +94,7 @@ using JSON2MAF
 
         # No COSMIC entry
         variant_no_cosmic = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -108,7 +108,7 @@ using JSON2MAF
     @testset "Single PrimateAI-3D Support" begin
         # PrimateAI-3D ≥ 0.8, alone can suggest likely pathogenic
         variant = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -127,7 +127,7 @@ using JSON2MAF
     @testset "2+ Score Support" begin
         # REVEL + DANN both meet threshold
         variant = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -149,7 +149,7 @@ using JSON2MAF
         cosmic_entry = CosmicEntry("COSM123", "TP53", "missense", 150)
 
         variant = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], [cosmic_entry],
             PopulationFrequency[],
@@ -170,7 +170,7 @@ using JSON2MAF
     @testset "Single Score Insufficient" begin
         # Only one score meets threshold (not PrimateAI-3D)
         variant = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -189,7 +189,7 @@ using JSON2MAF
 
     @testset "All Scores Below Threshold" begin
         variant = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -211,7 +211,7 @@ using JSON2MAF
         config_low = create_filter_config(min_revel_score = 0.5)
 
         variant = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -235,7 +235,7 @@ using JSON2MAF
     @testset "Confidence Score Calculation" begin
         # No supporting scores
         variant_none = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -247,7 +247,7 @@ using JSON2MAF
 
         # Only PrimateAI-3D (1 score)
         variant_primate = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -259,7 +259,7 @@ using JSON2MAF
 
         # PrimateAI-3D + REVEL (2 scores)
         variant_two = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -272,7 +272,7 @@ using JSON2MAF
         # All scores meet threshold (4 scores)
         cosmic_entry = CosmicEntry("COSM123", "TP53", "missense", 150)
         variant_all = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], [cosmic_entry],
             PopulationFrequency[],
@@ -288,7 +288,7 @@ using JSON2MAF
 
         # PrimateAI-3D + REVEL + DANN + COSMIC
         variant = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], [cosmic_entry],
             PopulationFrequency[],

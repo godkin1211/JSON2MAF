@@ -72,9 +72,9 @@ using JSON2MAF
         # Check that output contains key information
         output = String(take!(io))
         @test occursin("JSON2MAF Filter Configuration", output)
-        @test occursin("Quality Filter Parameters", output)
-        @test occursin("Population Frequency Filter Parameters", output)
-        @test occursin("Predictive Score Thresholds", output)
+        @test occursin("Quality filtering parameters", output)
+        @test occursin("Population frequency filtering parameters", output)
+        @test occursin("Predictive score thresholds", output)
     end
 end
 
@@ -105,7 +105,8 @@ end
             4321,
             988,
             "c.1234G>A",
-            "p.Val988Met"
+            "p.Val988Met",
+            true  # is_mane_select
         )
 
         @test transcript.gene_symbol == "BRCA1"
@@ -121,6 +122,7 @@ end
             "G",                          # reference_allele
             "A",                          # alternate_allele
             "SNV",                        # variant_type
+            ["PASS"],                     # filters
             100,                          # total_depth
             [0.45],                       # variant_frequencies
             TranscriptAnnotation[],       # transcripts

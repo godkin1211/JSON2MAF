@@ -16,7 +16,7 @@ using JSON2MAF
     function create_test_variant(;primate_ai_3d=nothing, dann=nothing, revel=nothing, cosmic=false)
         cosmic_entries = cosmic ? [CosmicEntry("COSM123", "TP53", "missense", 150)] : CosmicEntry[]
         return VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], cosmic_entries,
             PopulationFrequency[],

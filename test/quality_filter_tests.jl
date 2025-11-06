@@ -14,7 +14,7 @@ using JSON2MAF
     @testset "Sequencing Depth Filtering" begin
         # Test pass - depth exactly equals threshold
         variant_pass = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             30,  # totalDepth = 30 (exactly equals threshold)
             [0.5],  # VAF = 0.5
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
@@ -28,7 +28,7 @@ using JSON2MAF
 
         # Test fail - depth below threshold
         variant_fail = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             29,  # totalDepth = 29 (below threshold)
             [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
@@ -43,7 +43,7 @@ using JSON2MAF
 
         # Test pass - depth above threshold
         variant_high = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100,
             [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
@@ -58,7 +58,7 @@ using JSON2MAF
     @testset "Variant Frequency (VAF) Filtering" begin
         # Test pass - VAF exactly equals threshold
         variant_pass = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100,
             [0.03],  # VAF = 0.03 (exactly equals threshold)
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
@@ -71,7 +71,7 @@ using JSON2MAF
 
         # Test fail - VAF below threshold
         variant_fail = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100,
             [0.029],  # VAF = 0.029 (below threshold)
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
@@ -86,7 +86,7 @@ using JSON2MAF
 
         # Test pass - VAF above threshold
         variant_high = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100,
             [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
@@ -102,7 +102,7 @@ using JSON2MAF
         # Test pass - easAf below threshold
         pop_freq_low = PopulationFrequency("gnomad-exome", 0.05, 0.005, nothing, nothing, nothing)
         variant_pass = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             [pop_freq_low],
@@ -116,7 +116,7 @@ using JSON2MAF
         # Test fail - easAf above threshold
         pop_freq_high = PopulationFrequency("gnomad-exome", 0.05, 0.02, nothing, nothing, nothing)
         variant_fail = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             [pop_freq_high],
@@ -132,7 +132,7 @@ using JSON2MAF
         # Test boundary value - easAf exactly equals threshold
         pop_freq_equal = PopulationFrequency("gnomad-exome", 0.05, 0.01, nothing, nothing, nothing)
         variant_equal = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             [pop_freq_equal],
@@ -147,7 +147,7 @@ using JSON2MAF
         # Test pass - easAf below threshold
         pop_freq_low = PopulationFrequency("oneKg", 0.05, 0.008, nothing, nothing, nothing)
         variant_pass = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             [pop_freq_low],
@@ -161,7 +161,7 @@ using JSON2MAF
         # Test fail - easAf above threshold
         pop_freq_high = PopulationFrequency("oneKg", 0.05, 0.015, nothing, nothing, nothing)
         variant_fail = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             [pop_freq_high],
@@ -180,7 +180,7 @@ using JSON2MAF
         pop_freq_onekg = PopulationFrequency("oneKg", 0.05, 0.02, nothing, nothing, nothing)
 
         variant = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             [pop_freq_gnomad, pop_freq_onekg],  # gnomad-exome first
@@ -196,7 +196,7 @@ using JSON2MAF
     @testset "Missing Field Handling" begin
         # Missing totalDepth
         variant_no_depth = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             nothing,  # Missing totalDepth
             [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
@@ -210,7 +210,7 @@ using JSON2MAF
 
         # Missing variant_frequencies
         variant_no_vaf = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100,
             nothing,  # Missing VAF
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
@@ -224,7 +224,7 @@ using JSON2MAF
 
         # Missing population frequency - should pass (conservative strategy)
         variant_no_pop = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],  # No population frequency data
@@ -245,7 +245,7 @@ using JSON2MAF
         )
 
         variant = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             40,  # Does not meet strict_config depth requirement
             [0.08],  # Does not meet strict_config VAF requirement
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
@@ -262,7 +262,7 @@ using JSON2MAF
         # Satisfies all conditions
         pop_freq = PopulationFrequency("gnomad-exome", 0.05, 0.002, nothing, nothing, nothing)
         variant_all_pass = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             150,  # High depth
             [0.45],  # High VAF
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
@@ -278,7 +278,7 @@ using JSON2MAF
 
         # Depth passes but VAF does not pass
         variant_mixed = VariantPosition(
-            "chr1", 100, 100, "A", "G", "SNV",
+            "chr1", 100, 100, "A", "G", "SNV", ["PASS"],
             150,
             [0.01],  # VAF too low
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
