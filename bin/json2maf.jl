@@ -3,23 +3,23 @@
 """
 json2maf.jl
 
-Nirvana JSON 致癌性重要位點過濾工具
+Pathogenic variant filtering tool for Nirvana JSON
 
-使用多執行緒並行處理大規模 Nirvana JSON 檔案：
-- 利用多核心 CPU 並行處理變異
-- 完整的統計追蹤（包括預過濾階段）
-- 每個執行緒獨立處理一批變異並合併結果
-- 支援大型 VCF 註解檔案的高效能處理
+Multi-threaded parallel processing for large-scale Nirvana JSON files:
+- Utilize multi-core CPU for parallel variant processing
+- Complete statistics tracking (including pre-filtering stage)
+- Each thread processes a batch of variants independently and merges results
+- Supports high-performance processing of large VCF annotation files
 
-⚠️ 重要：建議設定執行緒數以獲得最佳效能
+⚠️ Important: Recommended to set thread count for optimal performance
 export JULIA_NUM_THREADS=8
 
-用法：
+Usage:
     julia -t 8 bin/json2maf.jl -i input.json.gz -o output.maf [options]
 """
 
 using Pkg
-# 啟用專案環境
+# Activate project environment
 Pkg.activate(joinpath(@__DIR__, ".."))
 
 using ArgParse
@@ -28,72 +28,72 @@ using JSON2MAF
 """
     parse_commandline()
 
-解析命令行參數
+Parse command line arguments
 """
 function parse_commandline()
     s = ArgParseSettings(
         prog = "json2maf",
-        description = "Nirvana JSON 致癌性重要位點過濾工具",
+        description = "Pathogenic variant filtering tool for Nirvana JSON",
         version = string(JSON2MAF.version()),
         add_version = true
     )
 
     @add_arg_table! s begin
         "--input", "-i"
-            help = "輸入 Nirvana JSON.gz 檔案路徑"
+            help = "Input Nirvana JSON.gz file path"
             required = true
             arg_type = String
 
         "--output", "-o"
-            help = "輸出 MAF 檔案路徑"
+            help = "Output MAF file path"
             required = true
             arg_type = String
 
         "--min-depth"
-            help = "最小測序深度 (預設: 30)"
+            help = "Minimum sequencing depth (default: 30)"
             arg_type = Int
             default = 30
 
         "--min-vaf"
-            help = "最小變異等位基因頻率 VAF (預設: 0.03)"
+            help = "Minimum variant allele frequency VAF (default: 0.03)"
             arg_type = Float64
             default = 0.03
 
         "--max-eas-af"
-            help = "東亞族群最大等位基因頻率 (預設: 0.01)"
+            help = "Maximum East Asian population allele frequency (default: 0.01)"
             arg_type = Float64
             default = 0.01
 
         "--min-revel"
-            help = "REVEL 分數閾值 (預設: 0.75)"
+            help = "REVEL score threshold (default: 0.75)"
             arg_type = Float64
             default = 0.75
 
         "--min-primate-ai"
-            help = "PrimateAI-3D 分數閾值 (預設: 0.8)"
+            help = "PrimateAI-3D score threshold (default: 0.8)"
             arg_type = Float64
             default = 0.8
 
         "--min-dann"
-            help = "DANN 分數閾值 (預設: 0.96)"
+            help = "DANN score threshold (default: 0.96)"
             arg_type = Float64
             default = 0.96
 
         "--keep-temp"
-            help = "保留臨時檔案（預設會刪除）"
+            help = "Keep temporary files (default: delete)"
             action = :store_true
 
         "--stats"
-            help = "統計報告輸出路徑 (可選)"
+            help = "Statistics report output path (optional)"
             arg_type = String
             default = nothing
 
         "--verbose", "-v"
-            help = "詳細輸出模式"
+            help = "Verbose output mode"
             action = :store_true
 
         "--quiet", "-q"
-            help = "安靜模式（不顯示進度）"
+            help = "Quiet mode (no progress display)"
             action = :store_true
     end
 
@@ -103,46 +103,46 @@ end
 """
     print_statistics(stats::Dict, output_path::Union{String, Nothing}=nothing)
 
-輸出統計資訊
+Output statistics
 """
 function print_statistics(stats::Dict, output_path::Union{String, Nothing}=nothing)
     report = """
 
     ═══════════════════════════════════════════════════════════
-                        過濾統計報告
+                      Filtering Statistics Report
     ═══════════════════════════════════════════════════════════
 
-    處理模式:               多執行緒並行處理
-    執行緒數:               $(stats[:num_threads])
+    Processing mode:        Multi-threaded parallel processing
+    Number of threads:      $(stats[:num_threads])
 
-    品質過濾:
-      - 通過品質過濾:       $(stats[:passed_quality])
-      - 深度不足:           $(stats[:failed_depth])
-      - VAF 過低:           $(stats[:failed_vaf])
-      - 族群頻率過高:       $(stats[:failed_af])
+    Quality filtering:
+      - Passed quality:     $(stats[:passed_quality])
+      - Insufficient depth: $(stats[:failed_depth])
+      - VAF too low:        $(stats[:failed_vaf])
+      - Population freq too high: $(stats[:failed_af])
 
-    致病性評估:
+    Pathogenicity assessment:
       - ClinVar Pathogenic:         $(stats[:clinvar_pathogenic])
       - ClinVar Likely pathogenic:  $(stats[:clinvar_likely])
-      - 預測分數支持:               $(stats[:predictive_likely])
-        * PrimateAI-3D 單獨支持:    $(stats[:primate_ai_only])
-        * 2+ 分數支持:              $(stats[:multi_score])
+      - Predictive scores support:  $(stats[:predictive_likely])
+        * PrimateAI-3D solo support: $(stats[:primate_ai_only])
+        * 2+ scores support:         $(stats[:multi_score])
 
-    最終結果:
-      - 納入變異數:         $(stats[:included])
-      - 排除變異數:         $(stats[:excluded])
+    Final results:
+      - Included variants:  $(stats[:included])
+      - Excluded variants:  $(stats[:excluded])
 
     ═══════════════════════════════════════════════════════════
     """
 
     println(report)
 
-    # 如果指定了統計檔案路徑，寫入檔案
+    # If statistics file path is specified, write to file
     if output_path !== nothing
         open(output_path, "w") do io
             write(io, report)
         end
-        println("統計報告已寫入: $output_path")
+        println("Statistics report written to: $output_path")
     end
 end
 
@@ -151,7 +151,7 @@ end
                         keep_temp::Bool=false, verbose::Bool=false, quiet::Bool=false,
                         stats_path::Union{String,Nothing}=nothing)
 
-處理 Nirvana JSON 檔案並輸出為 MAF 格式
+Process Nirvana JSON file and output as MAF format
 """
 function process_nirvana_json(input_path::String, output_path::String, config::FilterConfig;
                                       keep_temp::Bool=false, verbose::Bool=false, quiet::Bool=false,
@@ -160,19 +160,19 @@ function process_nirvana_json(input_path::String, output_path::String, config::F
     nthreads = Threads.nthreads()
 
     if verbose
-        println("\n開始處理: $input_path")
-        println("輸出檔案: $output_path")
-        println("處理模式: 多執行緒並行處理")
-        println("執行緒數: $nthreads")
+        println("\nStarting processing: $input_path")
+        println("Output file: $output_path")
+        println("Processing mode: Multi-threaded parallel processing")
+        println("Number of threads: $nthreads")
         display_config(config)
     end
 
     if nthreads == 1
-        @warn "只有 1 個執行緒！建議設定 JULIA_NUM_THREADS 以獲得更好的效能。"
-        @warn "例如: export JULIA_NUM_THREADS=8"
+        @warn "Only 1 thread! Recommended to set JULIA_NUM_THREADS for better performance."
+        @warn "Example: export JULIA_NUM_THREADS=8"
     end
 
-    # 為每個執行緒創建獨立的統計資料
+    # Create independent statistics for each thread
     thread_stats = [Dict(
         :passed_quality => 0,
         :failed_depth => 0,
@@ -187,25 +187,25 @@ function process_nirvana_json(input_path::String, output_path::String, config::F
         :excluded => 0
     ) for _ in 1:nthreads]
 
-    # 為每個執行緒創建獨立的 MAF 寫入器
+    # Create independent MAF writer for each thread
     temp_files = ["$(output_path).thread_$(i).tmp" for i in 1:nthreads]
     thread_writers = [create_maf_writer(temp_files[i], batch_size=1000) for i in 1:nthreads]
 
     if verbose
-        println("\n[1/4] 並行處理 Nirvana JSON...")
+        println("\n[1/4] Parallel processing Nirvana JSON...")
     end
 
-    # 並行處理所有變異（在預過濾階段就追蹤完整統計）
+    # Process all variants in parallel (track complete statistics from pre-filtering stage)
     try
         header = process_nirvana_parallel_with_stats(input_path, config, thread_stats) do variant, idx, tid
             stats = thread_stats[tid]
             writer = thread_writers[tid]
 
-            # 品質過濾
+            # Quality filtering
             quality_result = apply_quality_filters(variant, config)
 
             if !quality_result.passes_quality
-                # 更新統計 - 根據失敗原因分類
+                # Update statistics - categorize by failure reason
                 if quality_result.failure_reason !== nothing
                     reason_lower = lowercase(quality_result.failure_reason)
                     if occursin("depth", reason_lower)
@@ -223,16 +223,16 @@ function process_nirvana_json(input_path::String, output_path::String, config::F
 
             stats[:passed_quality] += 1
 
-            # ClinVar 評估
+            # ClinVar assessment
             clinvar_assessment = assess_clinvar_pathogenicity(variant.clinvar)
 
-            # 預測分數評估
+            # Predictive scores assessment
             predictive_assessment = assess_predictive_scores(variant, config)
 
-            # 整合決策
+            # Integrated decision
             decision = make_filter_decision(variant, clinvar_assessment, predictive_assessment)
 
-            # 更新統計並寫入
+            # Update statistics and write
             if decision.should_include
                 stats[:included] += 1
 
@@ -252,11 +252,11 @@ function process_nirvana_json(input_path::String, output_path::String, config::F
                     end
                 end
 
-                # 轉換為 MAF 記錄並寫入
+                # Convert to MAF record and write
                 maf_record = variant_to_maf(variant, decision)
                 write_maf_batch(writer, maf_record)
 
-                # 批次輸出（每 50 個變異輸出一次，減少 I/O 開銷）
+                # Batch output (output every 50 variants to reduce I/O overhead)
                 if verbose && stats[:included] % 50 == 0
                     println("  ✓ [Thread $tid] Processed $(stats[:included]) variants " *
                            "(latest: $(maf_record.hugo_symbol) $(maf_record.chromosome):$(maf_record.start_position))")
@@ -267,20 +267,20 @@ function process_nirvana_json(input_path::String, output_path::String, config::F
         end
 
     finally
-        # 關閉所有寫入器
+        # Close all writers
         for writer in thread_writers
             close_maf_writer(writer)
         end
     end
 
     if verbose
-        println("\n[2/4] 合併執行緒輸出...")
+        println("\n[2/4] Merging thread outputs...")
     end
 
-    # 合併所有執行緒的輸出檔案
+    # Merge all thread output files
     merge_maf_files(temp_files, output_path, keep_temp=keep_temp)
 
-    # 合併統計資料
+    # Merge statistics
     total_stats = Dict(
         :num_threads => nthreads,
         :passed_quality => sum(s[:passed_quality] for s in thread_stats),
@@ -299,16 +299,16 @@ function process_nirvana_json(input_path::String, output_path::String, config::F
     total_written = count_maf_records(output_path)
 
     if verbose
-        println("\n[3/4] 完成 MAF 檔案寫入...")
-        println("  ✓ 成功合併並寫入 $total_written 筆記錄到 $output_path")
+        println("\n[3/4] Completed MAF file writing...")
+        println("  ✓ Successfully merged and wrote $total_written records to $output_path")
         if !keep_temp
-            println("  ✓ 已刪除臨時檔案")
+            println("  ✓ Deleted temporary files")
         end
     end
 
-    # 輸出統計
+    # Output statistics
     if verbose
-        println("\n[4/4] 生成統計報告...")
+        println("\n[4/4] Generating statistics report...")
     end
 
     print_statistics(total_stats, stats_path)
@@ -319,13 +319,13 @@ end
 """
     main()
 
-主程式入口
+Main program entry point
 """
 function main()
-    # 解析參數
+    # Parse arguments
     args = parse_commandline()
 
-    # 建立配置
+    # Create configuration
     config = create_filter_config(
         min_total_depth = args["min-depth"],
         min_variant_frequency = args["min-vaf"],
@@ -335,32 +335,32 @@ function main()
         min_dann_score = args["min-dann"]
     )
 
-    # 驗證配置
+    # Validate configuration
     try
         validate_config(config)
     catch e
-        println(stderr, "錯誤: 配置參數無效 - $e")
+        println(stderr, "Error: Invalid configuration parameters - $e")
         exit(1)
     end
 
-    # 檢查輸入檔案
+    # Check input file
     if !isfile(args["input"])
-        println(stderr, "錯誤: 輸入檔案不存在: $(args["input"])")
+        println(stderr, "Error: Input file does not exist: $(args["input"])")
         exit(1)
     end
 
-    # 檢查執行緒數
+    # Check thread count
     nthreads = Threads.nthreads()
     if nthreads == 1 && !args["quiet"]
-        println("警告: 只有 1 個執行緒！")
-        println("      建議設定 JULIA_NUM_THREADS 環境變數以啟用多執行緒")
-        println("      例如: export JULIA_NUM_THREADS=8")
-        println("      或使用: julia -t 8 $(PROGRAM_FILE)")
+        println("Warning: Only 1 thread!")
+        println("         Recommended to set JULIA_NUM_THREADS environment variable to enable multi-threading")
+        println("         Example: export JULIA_NUM_THREADS=8")
+        println("         Or use: julia -t 8 $(PROGRAM_FILE)")
         println()
     end
 
     try
-        # 處理檔案
+        # Process file
         process_nirvana_json(
             args["input"],
             args["output"],
@@ -371,11 +371,11 @@ function main()
             stats_path = args["stats"]
         )
 
-        println("\n✓ 處理完成！（使用 $nthreads 個執行緒並行處理）")
+        println("\n✓ Processing complete! (Using $nthreads threads for parallel processing)")
         exit(0)
 
     catch e
-        println(stderr, "\n✗ 發生錯誤: $e")
+        println(stderr, "\n✗ Error occurred: $e")
         if args["verbose"]
             showerror(stderr, e, catch_backtrace())
         end
@@ -383,7 +383,7 @@ function main()
     end
 end
 
-# 執行主程式
+# Execute main program
 if abspath(PROGRAM_FILE) == @__FILE__
     main()
 end

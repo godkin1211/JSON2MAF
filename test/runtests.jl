@@ -1,42 +1,42 @@
 """
 runtests.jl
 
-JSON2MAF 測試套件主入口
+JSON2MAF Test Suite Main Entry Point
 """
 
 using Test
 using JSON2MAF
 
-@testset "JSON2MAF 測試套件" begin
-    @testset "資料結構測試" begin
+@testset "JSON2MAF Test Suite" begin
+    @testset "Data Structure Tests" begin
         include("datastructures_tests.jl")
     end
 
-    @testset "JSON 解析測試" begin
+    @testset "JSON Parsing Tests" begin
         include("parser_tests.jl")
     end
 
-    @testset "品質過濾測試" begin
+    @testset "Quality Filter Tests" begin
         include("quality_filter_tests.jl")
     end
 
-    @testset "ClinVar 過濾測試" begin
+    @testset "ClinVar Filter Tests" begin
         include("clinvar_filter_tests.jl")
     end
 
-    @testset "預測分數測試" begin
+    @testset "Predictive Scores Tests" begin
         include("predictive_scores_tests.jl")
     end
 
-    @testset "整合決策引擎測試" begin
+    @testset "Integrated Decision Engine Tests" begin
         include("decision_engine_tests.jl")
     end
 
-    @testset "MAF 轉換測試" begin
+    @testset "MAF Conversion Tests" begin
         include("maf_converter_tests.jl")
     end
 
-    @testset "MAF 寫入測試" begin
+    @testset "MAF Writer Tests" begin
         include("maf_writer_tests.jl")
     end
 end

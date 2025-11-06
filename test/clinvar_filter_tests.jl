@@ -1,16 +1,16 @@
 """
 clinvar_filter_tests.jl
 
-測試 ClinVar 致病性評估與優先級判斷功能
+Test ClinVar pathogenicity assessment and priority judgment functionality
 """
 
 using Test
 using JSON2MAF
 
-@testset "ClinVar 過濾器測試" begin
+@testset "ClinVar Filter Tests" begin
 
-    @testset "空條目處理" begin
-        # 測試空的 ClinVar 條目列表
+    @testset "Empty Entry Handling" begin
+        # Test empty ClinVar entry list
         assessment = assess_clinvar_pathogenicity(ClinVarEntry[])
         @test assessment.is_pathogenic == false
         @test assessment.is_likely_pathogenic == false
@@ -19,7 +19,7 @@ using JSON2MAF
         @test occursin("No ClinVar entries", assessment.reason)
     end
 
-    @testset "單一 Pathogenic 註解" begin
+    @testset "Single Pathogenic Annotation" begin
         entry = ClinVarEntry(
             "RCV12345",         # id
             "12345",            # allele_id
@@ -38,7 +38,7 @@ using JSON2MAF
         @test occursin("Cancer-related disease", assessment.reason)
     end
 
-    @testset "單一 Likely pathogenic 註解" begin
+    @testset "Single Likely Pathogenic Annotation" begin
         entry = ClinVarEntry(
             "RCV67890",         # id
             "67890",            # allele_id
@@ -56,8 +56,8 @@ using JSON2MAF
         @test occursin("Likely pathogenic", assessment.reason)
     end
 
-    @testset "Benign/Uncertain significance 過濾" begin
-        # Benign 條目應該被過濾
+    @testset "Benign/Uncertain Significance Filtering" begin
+        # Benign entries should be filtered
         benign_entry = ClinVarEntry(
             "RCV11111", "11111",
             "Benign",
@@ -71,7 +71,7 @@ using JSON2MAF
         @test assessment.is_likely_pathogenic == false
         @test occursin("No pathogenic", assessment.reason)
 
-        # Uncertain significance 條目應該被過濾
+        # Uncertain significance entries should be filtered
         uncertain_entry = ClinVarEntry(
             "RCV22222", "22222",
             "Uncertain significance",
@@ -85,8 +85,8 @@ using JSON2MAF
         @test assessment.is_likely_pathogenic == false
     end
 
-    @testset "Review status 優先級排序" begin
-        # 測試 get_review_status_priority 函數
+    @testset "Review Status Priority Sorting" begin
+        # Test get_review_status_priority function
         @test get_review_status_priority("practice guideline") == 1
         @test get_review_status_priority("reviewed by expert panel") == 2
         @test get_review_status_priority("criteria provided, multiple submitters, no conflicts") == 3
@@ -97,8 +97,8 @@ using JSON2MAF
         @test get_review_status_priority("unknown status") == 8
     end
 
-    @testset "多筆註解 - Review status 優先" begin
-        # 低優先級條目 (single submitter)
+    @testset "Multiple Annotations - Review Status Priority" begin
+        # Low priority entry (single submitter)
         entry_low = ClinVarEntry(
             "RCV11111", "11111",
             "Pathogenic",
@@ -107,7 +107,7 @@ using JSON2MAF
             "2024-03-01"
         )
 
-        # 高優先級條目 (expert panel)
+        # High priority entry (expert panel)
         entry_high = ClinVarEntry(
             "RCV22222", "22222",
             "Likely pathogenic",
@@ -118,14 +118,14 @@ using JSON2MAF
 
         assessment = assess_clinvar_pathogenicity([entry_low, entry_high])
 
-        # 應該選擇 expert panel 的條目
+        # Should select the expert panel entry
         @test assessment.selected_entry === entry_high
         @test assessment.confidence_level == "high"
         @test occursin("Selected from 2 entries", assessment.reason)
     end
 
-    @testset "多筆註解 - 癌症相關優先" begin
-        # 相同 review status，但一個是癌症相關
+    @testset "Multiple Annotations - Cancer-Related Priority" begin
+        # Same review status, but one is cancer-related
         entry_non_cancer = ClinVarEntry(
             "RCV11111", "11111",
             "Pathogenic",
@@ -144,13 +144,13 @@ using JSON2MAF
 
         assessment = assess_clinvar_pathogenicity([entry_non_cancer, entry_cancer])
 
-        # 應該選擇癌症相關的條目
+        # Should select the cancer-related entry
         @test assessment.selected_entry === entry_cancer
         @test occursin("Cancer-related disease", assessment.reason)
     end
 
-    @testset "多筆註解 - 最新時間優先" begin
-        # 相同 review status 和疾病類型，但更新時間不同
+    @testset "Multiple Annotations - Most Recent Time Priority" begin
+        # Same review status and disease type, but different update times
         entry_old = ClinVarEntry(
             "RCV11111", "11111",
             "Pathogenic",
@@ -169,12 +169,12 @@ using JSON2MAF
 
         assessment = assess_clinvar_pathogenicity([entry_old, entry_new])
 
-        # 應該選擇較新的條目
+        # Should select the newer entry
         @test assessment.selected_entry === entry_new
     end
 
-    @testset "癌症關鍵字檢測" begin
-        # 測試各種癌症關鍵字
+    @testset "Cancer Keyword Detection" begin
+        # Test various cancer keywords
         @test is_cancer_related(["Breast cancer"]) == true
         @test is_cancer_related(["Lung carcinoma"]) == true
         @test is_cancer_related(["Brain tumor"]) == true
@@ -186,54 +186,54 @@ using JSON2MAF
         @test is_cancer_related(["Glioma"]) == true
         @test is_cancer_related(["Hepatoblastoma"]) == true
 
-        # 測試非癌症疾病
+        # Test non-cancer diseases
         @test is_cancer_related(["Diabetes"]) == false
         @test is_cancer_related(["Hypertension"]) == false
         @test is_cancer_related(["Alzheimer disease"]) == false
 
-        # 測試大小寫不敏感
+        # Test case insensitivity
         @test is_cancer_related(["BREAST CANCER"]) == true
         @test is_cancer_related(["Lung Carcinoma"]) == true
 
-        # 測試多個疾病名稱
+        # Test multiple disease names
         @test is_cancer_related(["Diabetes", "Lung cancer", "Hypertension"]) == true
         @test is_cancer_related(["Diabetes", "Hypertension"]) == false
     end
 
-    @testset "複雜情境 - 多重優先級組合" begin
-        # 情境：3個條目，不同 review status、癌症相關性、時間
+    @testset "Complex Scenario - Multiple Priority Combinations" begin
+        # Scenario: 3 entries with different review status, cancer relevance, and time
         entry1 = ClinVarEntry(
             "RCV11111", "11111",
             "Pathogenic",
             "practice guideline",
-            ["Diabetes"],  # 非癌症
-            "2023-01-01"   # 舊時間
+            ["Diabetes"],  # Non-cancer
+            "2023-01-01"   # Old time
         )
 
         entry2 = ClinVarEntry(
             "RCV22222", "22222",
             "Likely pathogenic",
-            "criteria provided, single submitter",  # 低優先級
-            ["Lung cancer"],  # 癌症相關
-            "2024-01-01"      # 新時間
+            "criteria provided, single submitter",  # Low priority
+            ["Lung cancer"],  # Cancer-related
+            "2024-01-01"      # New time
         )
 
         entry3 = ClinVarEntry(
             "RCV33333", "33333",
             "Pathogenic",
-            "reviewed by expert panel",  # 中優先級
-            ["Breast carcinoma"],  # 癌症相關
-            "2024-01-01"           # 新時間
+            "reviewed by expert panel",  # Medium priority
+            ["Breast carcinoma"],  # Cancer-related
+            "2024-01-01"           # New time
         )
 
         assessment = assess_clinvar_pathogenicity([entry1, entry2, entry3])
 
-        # 應該選擇 entry1，因為 practice guideline 優先級最高
+        # Should select entry1 because practice guideline has highest priority
         @test assessment.selected_entry === entry1
         @test assessment.confidence_level == "high"
     end
 
-    @testset "信心等級判斷" begin
+    @testset "Confidence Level Assessment" begin
         # High confidence: practice guideline, expert panel
         entry_high = ClinVarEntry(
             "RCV11111", "11111",
@@ -268,14 +268,14 @@ using JSON2MAF
         @test assessment.confidence_level == "low"
     end
 
-    @testset "缺失欄位處理" begin
-        # 測試 last_evaluated 為 nothing
+    @testset "Missing Field Handling" begin
+        # Test when last_evaluated is nothing
         entry1 = ClinVarEntry(
             "RCV11111", "11111",
             "Pathogenic",
             "criteria provided, single submitter",
             ["Disease"],
-            nothing  # 缺失時間
+            nothing  # Missing time
         )
 
         entry2 = ClinVarEntry(
@@ -286,13 +286,13 @@ using JSON2MAF
             "2024-01-01"
         )
 
-        # 應該能正常處理，有時間的優先
+        # Should handle normally, prioritize one with time
         assessment = assess_clinvar_pathogenicity([entry1, entry2])
         @test assessment.selected_entry === entry2
     end
 
-    @testset "Pathogenic/Likely pathogenic 混合判斷" begin
-        # 測試 "Pathogenic/Likely pathogenic" 這種組合
+    @testset "Pathogenic/Likely Pathogenic Mixed Assessment" begin
+        # Test "Pathogenic/Likely pathogenic" combination
         entry = ClinVarEntry(
             "RCV11111", "11111",
             "Pathogenic/Likely pathogenic",
@@ -301,7 +301,7 @@ using JSON2MAF
             "2024-01-01"
         )
 
-        # 這種情況下應該被識別為 pathogenic（包含 pathogenic 但不只是 likely）
+        # This should be identified as pathogenic (contains pathogenic but not just likely)
         assessment = assess_clinvar_pathogenicity([entry])
         @test assessment.is_pathogenic == true
         @test assessment.is_likely_pathogenic == false

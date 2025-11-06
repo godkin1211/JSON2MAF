@@ -1,19 +1,19 @@
 """
 predictive_scores_tests.jl
 
-測試預測分數評估功能
+Test predictive score assessment functionality
 """
 
 using Test
 using JSON2MAF
 
-@testset "預測分數評估測試" begin
+@testset "Predictive Score Assessment Tests" begin
 
-    # 創建預設配置
+    # Create default configuration
     config = FilterConfig()
 
-    @testset "分數提取測試" begin
-        # 測試完整的分數
+    @testset "Score Extraction Tests" begin
+        # Test complete scores
         variant_full = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
@@ -26,12 +26,12 @@ using JSON2MAF
             String[]
         )
 
-        @test get_primate_ai_score(variant_full) == 0.85  # 優先使用 3D
+        @test get_primate_ai_score(variant_full) == 0.85  # Prioritize 3D
         @test get_dann_score(variant_full) == 0.98
         @test get_revel_score(variant_full) == 0.80
         @test is_in_cosmic(variant_full) == false
 
-        # 測試缺失分數
+        # Test missing scores
         variant_empty = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
@@ -47,28 +47,28 @@ using JSON2MAF
         @test is_in_cosmic(variant_empty) == false
     end
 
-    @testset "PrimateAI 版本優先級" begin
-        # 當兩個都存在時，優先使用 PrimateAI-3D
+    @testset "PrimateAI Version Priority" begin
+        # When both exist, prioritize PrimateAI-3D
         variant = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
             0.85,  # primate_ai_3d
-            0.70,  # primate_ai (舊版，較低)
+            0.70,  # primate_ai (old version, lower)
             nothing, nothing,
             String[]
         )
 
         @test get_primate_ai_score(variant) == 0.85
 
-        # 只有舊版時使用舊版
+        # Use old version when only old version exists
         variant_old = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
-            nothing,  # primate_ai_3d 缺失
+            nothing,  # primate_ai_3d missing
             0.70,     # primate_ai
             nothing, nothing,
             String[]
@@ -77,10 +77,10 @@ using JSON2MAF
         @test get_primate_ai_score(variant_old) == 0.70
     end
 
-    @testset "COSMIC 檢測" begin
+    @testset "COSMIC Detection" begin
         cosmic_entry = CosmicEntry("COSM123", "TP53", "missense", 150)
 
-        # 有 COSMIC 條目
+        # Has COSMIC entry
         variant_with_cosmic = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
@@ -92,7 +92,7 @@ using JSON2MAF
 
         @test is_in_cosmic(variant_with_cosmic) == true
 
-        # 沒有 COSMIC 條目
+        # No COSMIC entry
         variant_no_cosmic = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
@@ -105,14 +105,14 @@ using JSON2MAF
         @test is_in_cosmic(variant_no_cosmic) == false
     end
 
-    @testset "單一 PrimateAI-3D 支持" begin
-        # PrimateAI-3D ≥ 0.8，單獨即可建議為 likely pathogenic
+    @testset "Single PrimateAI-3D Support" begin
+        # PrimateAI-3D ≥ 0.8, alone can suggest likely pathogenic
         variant = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
-            0.85,  # primate_ai_3d ≥ 0.8
+            0.85,  # primate_ai_3d >= 0.8
             nothing, nothing, nothing,
             String[]
         )
@@ -121,20 +121,20 @@ using JSON2MAF
         @test assessment.suggests_pathogenic == true
         @test haskey(assessment.contributing_scores, "PrimateAI-3D")
         @test assessment.contributing_scores["PrimateAI-3D"] == 0.85
-        @test assessment.confidence >= 0.7  # PrimateAI-3D 基礎信心
+        @test assessment.confidence >= 0.7  # PrimateAI-3D base confidence
     end
 
-    @testset "2+ 分數支持" begin
-        # REVEL + DANN 都達到閾值
+    @testset "2+ Score Support" begin
+        # REVEL + DANN both meet threshold
         variant = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
-            nothing,  # 沒有 PrimateAI-3D
+            nothing,  # No PrimateAI-3D
             nothing,
-            0.98,     # DANN ≥ 0.96
-            0.80,     # REVEL ≥ 0.75
+            0.98,     # DANN >= 0.96
+            0.80,     # REVEL >= 0.75
             String[]
         )
 
@@ -145,7 +145,7 @@ using JSON2MAF
         @test length(assessment.contributing_scores) == 2
     end
 
-    @testset "REVEL + COSMIC 支持" begin
+    @testset "REVEL + COSMIC Support" begin
         cosmic_entry = CosmicEntry("COSM123", "TP53", "missense", 150)
 
         variant = VariantPosition(
@@ -155,8 +155,8 @@ using JSON2MAF
             PopulationFrequency[],
             nothing,
             nothing,
-            nothing,  # 沒有 DANN
-            0.80,     # REVEL ≥ 0.75
+            nothing,  # No DANN
+            0.80,     # REVEL >= 0.75
             String[]
         )
 
@@ -167,8 +167,8 @@ using JSON2MAF
         @test assessment.contributing_scores["COSMIC"] == 1.0
     end
 
-    @testset "單一分數不足" begin
-        # 只有一個分數達標（非 PrimateAI-3D）
+    @testset "Single Score Insufficient" begin
+        # Only one score meets threshold (not PrimateAI-3D)
         variant = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
@@ -177,7 +177,7 @@ using JSON2MAF
             nothing,
             nothing,
             nothing,
-            0.80,  # 只有 REVEL
+            0.80,  # Only REVEL
             String[]
         )
 
@@ -187,7 +187,7 @@ using JSON2MAF
         @test length(assessment.contributing_scores) == 1
     end
 
-    @testset "所有分數均低於閾值" begin
+    @testset "All Scores Below Threshold" begin
         variant = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
@@ -206,8 +206,8 @@ using JSON2MAF
         @test assessment.confidence == 0.0
     end
 
-    @testset "自訂配置閾值" begin
-        # 使用較低的 REVEL 閾值 (0.5)
+    @testset "Custom Configuration Thresholds" begin
+        # Use lower REVEL threshold (0.5)
         config_low = create_filter_config(min_revel_score = 0.5)
 
         variant = VariantPosition(
@@ -217,23 +217,23 @@ using JSON2MAF
             PopulationFrequency[],
             nothing, nothing,
             0.98,  # DANN
-            0.60,  # REVEL = 0.6 (≥ 0.5 但 < 0.75)
+            0.60,  # REVEL = 0.6 (>= 0.5 but < 0.75)
             String[]
         )
 
-        # 使用預設配置 (0.75)，不支持
+        # Use default config (0.75), not supported
         assessment_default = assess_predictive_scores(variant, config)
         @test assessment_default.suggests_pathogenic == false
 
-        # 使用低閾值配置 (0.5)，支持
+        # Use low threshold config (0.5), supported
         assessment_low = assess_predictive_scores(variant, config_low)
         @test assessment_low.suggests_pathogenic == true
         @test haskey(assessment_low.contributing_scores, "REVEL")
         @test haskey(assessment_low.contributing_scores, "DANN")
     end
 
-    @testset "信心分數計算" begin
-        # 沒有支持分數
+    @testset "Confidence Score Calculation" begin
+        # No supporting scores
         variant_none = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
@@ -245,7 +245,7 @@ using JSON2MAF
         assessment = assess_predictive_scores(variant_none, config)
         @test assessment.confidence == 0.0
 
-        # 只有 PrimateAI-3D (1個)
+        # Only PrimateAI-3D (1 score)
         variant_primate = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
@@ -257,7 +257,7 @@ using JSON2MAF
         assessment = assess_predictive_scores(variant_primate, config)
         @test assessment.confidence == 0.7
 
-        # PrimateAI-3D + REVEL (2個)
+        # PrimateAI-3D + REVEL (2 scores)
         variant_two = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
@@ -269,7 +269,7 @@ using JSON2MAF
         assessment = assess_predictive_scores(variant_two, config)
         @test assessment.confidence ≈ 0.8
 
-        # 所有分數都達標 (4個)
+        # All scores meet threshold (4 scores)
         cosmic_entry = CosmicEntry("COSM123", "TP53", "missense", 150)
         variant_all = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
@@ -280,10 +280,10 @@ using JSON2MAF
             String[]
         )
         assessment = assess_predictive_scores(variant_all, config)
-        @test assessment.confidence == 1.0  # 最高
+        @test assessment.confidence == 1.0  # Highest
     end
 
-    @testset "複雜組合情境" begin
+    @testset "Complex Combination Scenarios" begin
         cosmic_entry = CosmicEntry("COSM123", "TP53", "missense", 150)
 
         # PrimateAI-3D + REVEL + DANN + COSMIC

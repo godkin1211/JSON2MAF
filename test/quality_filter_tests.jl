@@ -1,21 +1,21 @@
 """
 quality_filter_tests.jl
 
-測試品質與族群頻率過濾功能
+Test quality and population frequency filtering functionality
 """
 
 using Test
 using JSON2MAF
 
-@testset "品質過濾器測試" begin
-    # 創建預設配置
+@testset "Quality Filter Tests" begin
+    # Create default configuration
     config = FilterConfig()
 
-    @testset "測序深度過濾" begin
-        # 測試通過 - 深度剛好等於閾值
+    @testset "Sequencing Depth Filtering" begin
+        # Test pass - depth exactly equals threshold
         variant_pass = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
-            30,  # totalDepth = 30 (剛好等於閾值)
+            30,  # totalDepth = 30 (exactly equals threshold)
             [0.5],  # VAF = 0.5
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -26,10 +26,10 @@ using JSON2MAF
         @test result.passes_quality == true
         @test result.failure_reason === nothing
 
-        # 測試失敗 - 深度低於閾值
+        # Test fail - depth below threshold
         variant_fail = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
-            29,  # totalDepth = 29 (低於閾值)
+            29,  # totalDepth = 29 (below threshold)
             [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -41,7 +41,7 @@ using JSON2MAF
         @test occursin("Low sequencing depth", result.failure_reason)
         @test occursin("29", result.failure_reason)
 
-        # 測試通過 - 深度高於閾值
+        # Test pass - depth above threshold
         variant_high = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100,
@@ -55,12 +55,12 @@ using JSON2MAF
         @test result.passes_quality == true
     end
 
-    @testset "變異頻率(VAF)過濾" begin
-        # 測試通過 - VAF 剛好等於閾值
+    @testset "Variant Frequency (VAF) Filtering" begin
+        # Test pass - VAF exactly equals threshold
         variant_pass = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100,
-            [0.03],  # VAF = 0.03 (剛好等於閾值)
+            [0.03],  # VAF = 0.03 (exactly equals threshold)
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
             nothing, nothing, nothing, nothing,
@@ -69,11 +69,11 @@ using JSON2MAF
         result = apply_quality_filters(variant_pass, config)
         @test result.passes_quality == true
 
-        # 測試失敗 - VAF 低於閾值
+        # Test fail - VAF below threshold
         variant_fail = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100,
-            [0.029],  # VAF = 0.029 (低於閾值)
+            [0.029],  # VAF = 0.029 (below threshold)
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
             nothing, nothing, nothing, nothing,
@@ -84,7 +84,7 @@ using JSON2MAF
         @test occursin("Low variant frequency", result.failure_reason)
         @test occursin("0.029", result.failure_reason)
 
-        # 測試通過 - VAF 高於閾值
+        # Test pass - VAF above threshold
         variant_high = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100,
@@ -98,8 +98,8 @@ using JSON2MAF
         @test result.passes_quality == true
     end
 
-    @testset "gnomAD-exome 東亞頻率過濾" begin
-        # 測試通過 - easAf 低於閾值
+    @testset "gnomAD-exome East Asian Frequency Filtering" begin
+        # Test pass - easAf below threshold
         pop_freq_low = PopulationFrequency("gnomad-exome", 0.05, 0.005, nothing, nothing, nothing)
         variant_pass = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
@@ -113,7 +113,7 @@ using JSON2MAF
         @test result.passes_quality == true
         @test result.eas_allele_frequency == 0.005
 
-        # 測試失敗 - easAf 高於閾值
+        # Test fail - easAf above threshold
         pop_freq_high = PopulationFrequency("gnomad-exome", 0.05, 0.02, nothing, nothing, nothing)
         variant_fail = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
@@ -129,7 +129,7 @@ using JSON2MAF
         @test occursin("gnomAD-exome", result.failure_reason)
         @test result.eas_allele_frequency == 0.02
 
-        # 測試邊界值 - easAf 剛好等於閾值
+        # Test boundary value - easAf exactly equals threshold
         pop_freq_equal = PopulationFrequency("gnomad-exome", 0.05, 0.01, nothing, nothing, nothing)
         variant_equal = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
@@ -140,11 +140,11 @@ using JSON2MAF
             String[]
         )
         result = apply_quality_filters(variant_equal, config)
-        @test result.passes_quality == true  # <= 閾值應該通過
+        @test result.passes_quality == true  # <= threshold should pass
     end
 
-    @testset "1000 Genomes (oneKg) 東亞頻率過濾" begin
-        # 測試通過 - easAf 低於閾值
+    @testset "1000 Genomes (oneKg) East Asian Frequency Filtering" begin
+        # Test pass - easAf below threshold
         pop_freq_low = PopulationFrequency("oneKg", 0.05, 0.008, nothing, nothing, nothing)
         variant_pass = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
@@ -158,7 +158,7 @@ using JSON2MAF
         @test result.passes_quality == true
         @test result.eas_allele_frequency == 0.008
 
-        # 測試失敗 - easAf 高於閾值
+        # Test fail - easAf above threshold
         pop_freq_high = PopulationFrequency("oneKg", 0.05, 0.015, nothing, nothing, nothing)
         variant_fail = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
@@ -174,8 +174,8 @@ using JSON2MAF
         @test occursin("1000G", result.failure_reason)
     end
 
-    @testset "族群頻率優先順序" begin
-        # gnomad-exome 優先於 oneKg
+    @testset "Population Frequency Priority Order" begin
+        # gnomad-exome takes priority over oneKg
         pop_freq_gnomad = PopulationFrequency("gnomad-exome", 0.05, 0.005, nothing, nothing, nothing)
         pop_freq_onekg = PopulationFrequency("oneKg", 0.05, 0.02, nothing, nothing, nothing)
 
@@ -183,21 +183,21 @@ using JSON2MAF
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
-            [pop_freq_gnomad, pop_freq_onekg],  # gnomad-exome 在前
+            [pop_freq_gnomad, pop_freq_onekg],  # gnomad-exome first
             nothing, nothing, nothing, nothing,
             String[]
         )
         result = apply_quality_filters(variant, config)
-        # 應該使用 gnomad-exome 的值 (0.005)，因此通過
+        # Should use gnomad-exome value (0.005), therefore passes
         @test result.passes_quality == true
         @test result.eas_allele_frequency == 0.005
     end
 
-    @testset "缺失欄位處理" begin
-        # 缺失 totalDepth
+    @testset "Missing Field Handling" begin
+        # Missing totalDepth
         variant_no_depth = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
-            nothing,  # 缺失 totalDepth
+            nothing,  # Missing totalDepth
             [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
@@ -208,11 +208,11 @@ using JSON2MAF
         @test result.passes_quality == false
         @test occursin("Missing totalDepth", result.failure_reason)
 
-        # 缺失 variant_frequencies
+        # Missing variant_frequencies
         variant_no_vaf = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100,
-            nothing,  # 缺失 VAF
+            nothing,  # Missing VAF
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
             nothing, nothing, nothing, nothing,
@@ -222,12 +222,12 @@ using JSON2MAF
         @test result.passes_quality == false
         @test occursin("Missing variant frequency", result.failure_reason)
 
-        # 缺失族群頻率 - 應該通過（保守策略）
+        # Missing population frequency - should pass (conservative strategy)
         variant_no_pop = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
-            PopulationFrequency[],  # 沒有族群頻率資料
+            PopulationFrequency[],  # No population frequency data
             nothing, nothing, nothing, nothing,
             String[]
         )
@@ -236,8 +236,8 @@ using JSON2MAF
         @test result.eas_allele_frequency === nothing
     end
 
-    @testset "自訂配置參數" begin
-        # 使用更嚴格的配置
+    @testset "Custom Configuration Parameters" begin
+        # Use stricter configuration
         strict_config = create_filter_config(
             min_total_depth = 50,
             min_variant_frequency = 0.1,
@@ -246,8 +246,8 @@ using JSON2MAF
 
         variant = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
-            40,  # 不符合 strict_config 的深度要求
-            [0.08],  # 不符合 strict_config 的 VAF 要求
+            40,  # Does not meet strict_config depth requirement
+            [0.08],  # Does not meet strict_config VAF requirement
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             PopulationFrequency[],
             nothing, nothing, nothing, nothing,
@@ -258,15 +258,15 @@ using JSON2MAF
         @test occursin("40", result.failure_reason)
     end
 
-    @testset "多重條件組合" begin
-        # 同時滿足所有條件
+    @testset "Multiple Condition Combinations" begin
+        # Satisfies all conditions
         pop_freq = PopulationFrequency("gnomad-exome", 0.05, 0.002, nothing, nothing, nothing)
         variant_all_pass = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
-            150,  # 高深度
-            [0.45],  # 高 VAF
+            150,  # High depth
+            [0.45],  # High VAF
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
-            [pop_freq],  # 低族群頻率
+            [pop_freq],  # Low population frequency
             nothing, nothing, nothing, nothing,
             String[]
         )
@@ -276,11 +276,11 @@ using JSON2MAF
         @test result.variant_frequency == 0.45
         @test result.eas_allele_frequency == 0.002
 
-        # 深度通過但 VAF 不通過
+        # Depth passes but VAF does not pass
         variant_mixed = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             150,
-            [0.01],  # VAF 過低
+            [0.01],  # VAF too low
             TranscriptAnnotation[], ClinVarEntry[], CosmicEntry[],
             [pop_freq],
             nothing, nothing, nothing, nothing,

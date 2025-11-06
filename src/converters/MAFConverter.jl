@@ -1,8 +1,8 @@
 """
 MAFConverter.jl
 
-MAF 格式轉換模組
-將 Nirvana 註解的變異轉換為 MAF (Mutation Annotation Format) 格式
+MAF format conversion module
+Converts Nirvana annotated variants to MAF (Mutation Annotation Format) format
 """
 
 module MAFConverter
@@ -13,12 +13,12 @@ import Base: get
 export variant_to_maf, map_variant_classification, map_variant_type,
        extract_hgvs_notation, select_canonical_transcript
 
-# 全局常數：避免重複分配空字串
+# Global constants: avoid repeated allocation of empty strings
 const EMPTY_STRING = ""
 const DOT_STRING = "."
 
-# Consequence 嚴重程度映射（全局常數，避免每次函數調用都重新創建 Dict）
-# 數字越小越嚴重，基於 Sequence Ontology 和 VEP 的分類
+# Consequence severity mapping (global constant to avoid recreating Dict on each function call)
+# Lower number means more severe, based on Sequence Ontology and VEP classification
 const CONSEQUENCE_SEVERITY = Dict{String, Int}(
     # HIGH impact
     "transcript_ablation" => 1,
@@ -65,38 +65,38 @@ const CONSEQUENCE_SEVERITY = Dict{String, Int}(
 """
     variant_to_maf(variant::VariantPosition, decision::FilterDecision) -> MAFRecord
 
-將變異位點轉換為 MAF 記錄
+Convert variant position to MAF record
 
-# 參數
-- `variant`: 變異位點資料
-- `decision`: 過濾決策結果
+# Parameters
+- `variant`: Variant position data
+- `decision`: Filter decision result
 
-# 返回
-- `MAFRecord`: MAF 格式記錄
+# Returns
+- `MAFRecord`: MAF format record
 
-# 範例
+# Example
 ```julia
 maf_record = variant_to_maf(variant, decision)
 ```
 """
 function variant_to_maf(variant::VariantPosition, decision::FilterDecision)::MAFRecord
-    # 選擇 canonical transcript
+    # Select canonical transcript
     canonical = select_canonical_transcript(variant.transcripts)
 
-    # 提取基因符號
+    # Extract gene symbol
     hugo_symbol = canonical !== nothing ? get(canonical, :gene_symbol, ".") : "."
 
-    # 提取 HGVS
+    # Extract HGVS
     hgvsc, hgvsp, hgvsp_short = if canonical !== nothing
         extract_hgvs_notation(canonical)
     else
         (".", ".", ".")
     end
 
-    # 提取 Transcript ID
+    # Extract Transcript ID
     transcript_id = canonical !== nothing ? get(canonical, :transcript_id, ".") : "."
 
-    # 映射變異分類
+    # Map variant classification
     variant_classification = if canonical !== nothing
         consequences = get(canonical, :consequences, String[])
         if !isempty(consequences)
@@ -108,23 +108,23 @@ function variant_to_maf(variant::VariantPosition, decision::FilterDecision)::MAF
         "."
     end
 
-    # 映射變異類型
+    # Map variant type
     variant_type_maf = map_variant_type(variant.reference_allele, variant.alternate_allele)
 
-    # 提取 ClinVar 資訊
+    # Extract ClinVar information
     clinvar_id, clinvar_review, clinvar_sig, clinvar_disease = extract_clinvar_info(variant.clinvar)
 
-    # 提取 COSMIC ID
+    # Extract COSMIC ID
     cosmic_id = extract_cosmic_id(variant.cosmic)
 
-    # 提取 dbSNP
+    # Extract dbSNP
     dbsnp_rs = isempty(variant.dbsnp_ids) ? "." : variant.dbsnp_ids[1]
 
-    # 提取 gnomAD AF
+    # Extract gnomAD AF
     gnomad_af = extract_gnomad_af(variant.population_frequencies)
 
-    # 提取預測分數並轉為字串 (使用 nothing 表示缺失值)
-    # PrimateAI: 優先使用 3D 版本
+    # Extract predictive scores and convert to string (use nothing for missing values)
+    # PrimateAI: prioritize 3D version
     primate_ai = variant.primate_ai_3d !== nothing ? variant.primate_ai_3d :
                  (variant.primate_ai !== nothing ? variant.primate_ai : nothing)
     primate_ai_str = isnothing(primate_ai) ? nothing : string(primate_ai)
@@ -132,11 +132,11 @@ function variant_to_maf(variant::VariantPosition, decision::FilterDecision)::MAF
     revel_str = isnothing(variant.revel_score) ? nothing : string(variant.revel_score)
     gnomad_af_str = isnothing(gnomad_af) ? nothing : string(gnomad_af)
 
-    # 提取東亞 AF
+    # Extract East Asian AF
     gnomad_eas_af = extract_gnomad_eas_af(variant.population_frequencies)
     gnomad_eas_af_str = isnothing(gnomad_eas_af) ? nothing : string(gnomad_eas_af)
 
-    # 提取深度與 VAF - 使用全局常數減少分配
+    # Extract depth and VAF - use global constants to reduce allocations
     depth_str = isnothing(variant.total_depth) ? EMPTY_STRING : string(variant.total_depth)
     vaf_str = (isnothing(variant.variant_frequencies) || isempty(variant.variant_frequencies)) ?
               EMPTY_STRING : string(variant.variant_frequencies[1])
@@ -146,19 +146,19 @@ function variant_to_maf(variant::VariantPosition, decision::FilterDecision)::MAF
         chromosome = variant.chromosome,
         start_position = variant.start,
         end_position = variant.end_pos,
-        strand = "+",  # Nirvana 通常不提供，預設為 +
+        strand = "+",  # Nirvana usually doesn't provide, default to +
         variant_classification = variant_classification,
         variant_type = variant_type_maf,
         reference_allele = variant.reference_allele,
-        tumor_seq_allele1 = variant.reference_allele,  # 通常與 reference 相同
-        tumor_seq_allele2 = variant.alternate_allele,  # 變異等位基因
-        tumor_sample_barcode = "",  # 需從 samples 提取，目前設為空
+        tumor_seq_allele1 = variant.reference_allele,  # Usually same as reference
+        tumor_seq_allele2 = variant.alternate_allele,  # Variant allele
+        tumor_sample_barcode = "",  # Need to extract from samples, currently empty
         hgvsc = hgvsc,
         hgvsp = hgvsp,
         hgvsp_short = hgvsp_short,
         transcript_id = transcript_id,
         dbsnp_rs = dbsnp_rs,
-        dbsnp_val_status = "",  # 不可用
+        dbsnp_val_status = "",  # Not available
         cosmic_id = cosmic_id,
         clinvar_id = clinvar_id,
         clinvar_review_status = clinvar_review,
@@ -177,7 +177,7 @@ end
 """
     map_variant_classification(consequence::String) -> String
 
-映射 Nirvana consequence 到 MAF Variant_Classification
+Map Nirvana consequence to MAF Variant_Classification
 
 # MAF Variant Classification
 - Missense_Mutation
@@ -264,14 +264,14 @@ function map_variant_classification(consequence::String)::String
 
     # Default
     else
-        return consequence  # 返回原始值
+        return consequence  # Return original value
     end
 end
 
 """
     map_variant_type(ref::String, alt::String) -> String
 
-映射變異類型到 MAF Variant_Type
+Map variant type to MAF Variant_Type
 
 # MAF Variant Types
 - SNP (single nucleotide polymorphism)
@@ -315,16 +315,16 @@ end
 """
     extract_hgvs_notation(transcript::TranscriptAnnotation) -> Tuple{String, String, String}
 
-提取 HGVS 註解 (coding, protein, protein short)
+Extract HGVS notation (coding, protein, protein short)
 
-# 返回
+# Returns
 - (HGVSc, HGVSp, HGVSp_Short)
 """
 function extract_hgvs_notation(transcript::TranscriptAnnotation)::Tuple{String, String, String}
     hgvsc = get(transcript, :hgvs_coding, ".")
     hgvsp = get(transcript, :hgvs_protein, ".")
 
-    # 生成 short form (移除 p. 前綴，簡化氨基酸名稱)
+    # Generate short form (remove p. prefix, simplify amino acid names)
     hgvsp_short = if hgvsp != "." && !isempty(hgvsp)
         simplify_hgvsp(hgvsp)
     else
@@ -337,33 +337,33 @@ end
 """
     simplify_hgvsp(hgvsp::String) -> String
 
-簡化 HGVS 蛋白質註解為短形式
-例如: p.Gly12Asp → p.G12D
+Simplify HGVS protein notation to short form
+Example: p.Gly12Asp → p.G12D
 """
 function simplify_hgvsp(hgvsp::String)::String
-    # 簡單實作：直接返回原值
-    # 完整實作需要氨基酸三字母到單字母的映射
+    # Simple implementation: return original value
+    # Full implementation would need amino acid three-letter to single-letter mapping
     return hgvsp
 end
 
 """
     select_canonical_transcript(transcripts::Vector{TranscriptAnnotation}) -> Union{TranscriptAnnotation, Nothing}
 
-根據優先級選擇 canonical transcript
+Select canonical transcript based on priority
 
-# 優先級
-1. RefSeq transcript (NM_ 開頭) - 通常是 canonical
-2. 最嚴重的 consequence - 選擇影響最大的變異
-3. 第一個 transcript (fallback)
+# Priority
+1. RefSeq transcript (starting with NM_) - usually canonical
+2. Most severe consequence - choose the most impactful variant
+3. First transcript (fallback)
 
-# 參數
-- `transcripts`: TranscriptAnnotation 陣列
+# Parameters
+- `transcripts`: Array of TranscriptAnnotation
 
-# 返回
-- 選中的 transcript，如果陣列為空則返回 nothing
+# Returns
+- Selected transcript, or nothing if array is empty
 
-# Consequence 嚴重程度 (依據 Sequence Ontology)
-按從嚴重到輕微排序：
+# Consequence severity (based on Sequence Ontology)
+Sorted from severe to mild:
 - High impact: transcript_ablation, splice_donor/acceptor, stop_gained, frameshift
 - Moderate impact: inframe_indel, missense_variant
 - Low impact: splice_region, synonymous_variant
@@ -374,30 +374,30 @@ function select_canonical_transcript(transcripts::Vector{TranscriptAnnotation}):
         return nothing
     end
 
-    # 優先級 1: RefSeq transcript (NM_ 開頭)
-    # RefSeq NM_ 是人工審核的 canonical transcript
+    # Priority 1: RefSeq transcript (starting with NM_)
+    # RefSeq NM_ is manually reviewed canonical transcript
     for trans in transcripts
         if trans.id !== nothing && startswith(trans.id, "NM_")
             return trans
         end
     end
 
-    # 優先級 2: 根據 consequence 嚴重程度選擇
+    # Priority 2: Select based on consequence severity
     best_trans = transcripts[1]
-    best_severity = 1000  # 初始化為很大的數字
+    best_severity = 1000  # Initialize with a large number
 
     for trans in transcripts
         if !isempty(trans.consequence)
-            # 找出此 transcript 中最嚴重的 consequence
+            # Find the most severe consequence in this transcript
             min_severity = 1000
             for cons in trans.consequence
-                severity = get(CONSEQUENCE_SEVERITY, cons, 999)  # 未知的 consequence 設為 999
+                severity = get(CONSEQUENCE_SEVERITY, cons, 999)  # Unknown consequences set to 999
                 if severity < min_severity
                     min_severity = severity
                 end
             end
 
-            # 如果此 transcript 的最嚴重 consequence 比目前最好的更嚴重，則選擇它
+            # If this transcript's most severe consequence is more severe than the current best, select it
             if min_severity < best_severity
                 best_severity = min_severity
                 best_trans = trans
@@ -411,9 +411,9 @@ end
 """
     extract_clinvar_info(clinvar_entries::Vector{ClinVarEntry}) -> Tuple{String, String, String, String}
 
-提取 ClinVar 資訊
+Extract ClinVar information
 
-# 返回
+# Returns
 - (ClinVar_ID, Review_Status, Significance, Disease)
 """
 function extract_clinvar_info(clinvar_entries::Vector{ClinVarEntry})::Tuple{String, String, String, String}
@@ -421,7 +421,7 @@ function extract_clinvar_info(clinvar_entries::Vector{ClinVarEntry})::Tuple{Stri
         return (".", ".", ".", ".")
     end
 
-    # 取第一個條目
+    # Take the first entry
     entry = clinvar_entries[1]
 
     clinvar_id = entry.id !== nothing ? entry.id : "."
@@ -435,14 +435,14 @@ end
 """
     extract_cosmic_id(cosmic_entries::Vector{CosmicEntry}) -> String
 
-提取 COSMIC ID
+Extract COSMIC ID
 """
 function extract_cosmic_id(cosmic_entries::Vector{CosmicEntry})::String
     if isempty(cosmic_entries)
         return "."
     end
 
-    # 收集所有 COSMIC IDs
+    # Collect all COSMIC IDs
     ids = [e.id for e in cosmic_entries if e.id !== nothing]
 
     if isempty(ids)
@@ -455,7 +455,7 @@ end
 """
     extract_gnomad_af(pop_freqs::Vector{PopulationFrequency}) -> Union{Float64, Nothing}
 
-提取 gnomAD 等位基因頻率
+Extract gnomAD allele frequency
 """
 function extract_gnomad_af(pop_freqs::Vector{PopulationFrequency})::Union{Float64, Nothing}
     for pf in pop_freqs
@@ -470,7 +470,7 @@ end
 """
     extract_gnomad_eas_af(pop_freqs::Vector{PopulationFrequency}) -> Union{Float64, Nothing}
 
-提取 gnomAD 東亞族群等位基因頻率
+Extract gnomAD East Asian population allele frequency
 """
 function extract_gnomad_eas_af(pop_freqs::Vector{PopulationFrequency})::Union{Float64, Nothing}
     for pf in pop_freqs
@@ -485,7 +485,7 @@ end
 """
     get(transcript::TranscriptAnnotation, key::Symbol, default) -> Any
 
-安全地從 TranscriptAnnotation 提取欄位
+Safely extract fields from TranscriptAnnotation
 """
 function get(transcript::TranscriptAnnotation, key::Symbol, default)
     if key == :gene_symbol
@@ -499,7 +499,7 @@ function get(transcript::TranscriptAnnotation, key::Symbol, default)
     elseif key == :hgvs_protein
         return transcript.hgvsp !== nothing ? transcript.hgvsp : default
     elseif key == :is_canonical
-        # TranscriptAnnotation 沒有 is_canonical 欄位，返回 default
+        # TranscriptAnnotation doesn't have is_canonical field, return default
         return default
     else
         return default

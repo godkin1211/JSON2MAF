@@ -1,8 +1,8 @@
 """
 DecisionEngine.jl
 
-整合過濾決策引擎
-整合 ClinVar 與預測分數評估，做出最終納入/排除決策
+Integrated filtering decision engine
+Integrates ClinVar and predictive score assessment to make final inclusion/exclusion decisions
 """
 
 module DecisionEngine
@@ -16,29 +16,29 @@ export make_filter_decision, count_supporting_predictive_scores, has_primate_ai_
                         clinvar_assessment::ClinVarAssessment,
                         predictive_assessment::PredictiveAssessment) -> FilterDecision
 
-整合 ClinVar 與預測分數評估，做出最終過濾決策
+Integrate ClinVar and predictive score assessment to make final filtering decision
 
-# 決策邏輯
-1. ClinVar Pathogenic → 直接納入，標記為 "Pathogenic"
-2. ClinVar Likely pathogenic → 直接納入，標記為 "Likely pathogenic"
-3. ClinVar 無結論 + 2+ 預測分數支持 → 納入，標記為 "Likely pathogenic"
-4. ClinVar 無結論 + 僅 PrimateAI-3D 支持 → 納入，標記為 "Likely pathogenic"
-5. 其他情況 → 排除
+# Decision logic
+1. ClinVar Pathogenic → Include directly, mark as "Pathogenic"
+2. ClinVar Likely pathogenic → Include directly, mark as "Likely pathogenic"
+3. ClinVar inconclusive + 2+ predictive scores support → Include, mark as "Likely pathogenic"
+4. ClinVar inconclusive + only PrimateAI-3D support → Include, mark as "Likely pathogenic"
+5. Other cases → Exclude
 
-# 參數
-- `variant`: 變異位點資料
-- `clinvar_assessment`: ClinVar 評估結果
-- `predictive_assessment`: 預測分數評估結果
+# Parameters
+- `variant`: Variant position data
+- `clinvar_assessment`: ClinVar assessment result
+- `predictive_assessment`: Predictive score assessment result
 
-# 返回
-- `FilterDecision`: 包含是否納入、致病性分類、證據來源、理由
+# Returns
+- `FilterDecision`: Contains whether to include, pathogenicity classification, evidence source, justification
 
-# 範例
+# Example
 ```julia
 decision = make_filter_decision(variant, clinvar_result, predictive_result)
 if decision.should_include
-    println("納入變異: ", decision.pathogenicity_class)
-    println("理由: ", decision.justification)
+    println("Include variant: ", decision.pathogenicity_class)
+    println("Reason: ", decision.justification)
 end
 ```
 """
@@ -48,7 +48,7 @@ function make_filter_decision(
     predictive_assessment::PredictiveAssessment
 )::FilterDecision
 
-    # 規則 1: ClinVar Pathogenic
+    # Rule 1: ClinVar Pathogenic
     if clinvar_assessment.is_pathogenic
         return FilterDecision(
             true,
@@ -58,7 +58,7 @@ function make_filter_decision(
         )
     end
 
-    # 規則 2: ClinVar Likely pathogenic
+    # Rule 2: ClinVar Likely pathogenic
     if clinvar_assessment.is_likely_pathogenic
         return FilterDecision(
             true,
@@ -68,10 +68,10 @@ function make_filter_decision(
         )
     end
 
-    # ClinVar 無結論，檢查預測分數
-    # 規則 3 & 4: 預測分數支持
+    # ClinVar inconclusive, check predictive scores
+    # Rules 3 & 4: Predictive score support
     if predictive_assessment.suggests_pathogenic
-        # 檢查是否為 PrimateAI-3D 單獨支持
+        # Check if PrimateAI-3D alone supports
         if has_primate_ai_support(predictive_assessment) &&
            predictive_assessment.support_count == 1
             return FilterDecision(
@@ -82,7 +82,7 @@ function make_filter_decision(
             )
         end
 
-        # 2+ 預測分數支持
+        # 2+ predictive scores support
         if predictive_assessment.support_count >= 2
             return FilterDecision(
                 true,
@@ -93,7 +93,7 @@ function make_filter_decision(
         end
     end
 
-    # 規則 5: 其他情況 → 排除
+    # Rule 5: Other cases → Exclude
     return FilterDecision(
         false,
         "Excluded",
@@ -105,7 +105,7 @@ end
 """
     count_supporting_predictive_scores(assessment::PredictiveAssessment) -> Int
 
-計算支持致病性的預測分數數量
+Count number of predictive scores supporting pathogenicity
 """
 function count_supporting_predictive_scores(assessment::PredictiveAssessment)::Int
     return assessment.support_count
@@ -114,7 +114,7 @@ end
 """
     has_primate_ai_support(assessment::PredictiveAssessment) -> Bool
 
-判斷是否有 PrimateAI-3D 支持
+Determine if PrimateAI-3D support exists
 """
 function has_primate_ai_support(assessment::PredictiveAssessment)::Bool
     return assessment.has_primate_ai_support
@@ -123,7 +123,7 @@ end
 """
     build_clinvar_justification(assessment::ClinVarAssessment, classification::String) -> String
 
-建立 ClinVar 證據的理由說明
+Build justification description for ClinVar evidence
 """
 function build_clinvar_justification(assessment::ClinVarAssessment, classification::String)::String
     parts = String[]
@@ -141,14 +141,14 @@ end
 """
     build_predictive_justification(assessment::PredictiveAssessment) -> String
 
-建立預測分數證據的理由說明
+Build justification description for predictive score evidence
 """
 function build_predictive_justification(assessment::PredictiveAssessment)::String
     parts = String[]
 
     push!(parts, "Supported by $(assessment.support_count) predictive scores")
 
-    # 列出支持的分數
+    # List supporting scores
     score_names = sort(collect(keys(assessment.contributing_scores)))
     push!(parts, "Scores: $(join(score_names, ", "))")
 
@@ -161,7 +161,7 @@ end
     build_exclusion_justification(clinvar_assessment::ClinVarAssessment,
                                   predictive_assessment::PredictiveAssessment) -> String
 
-建立排除變異的理由說明
+Build justification description for excluded variant
 """
 function build_exclusion_justification(
     clinvar_assessment::ClinVarAssessment,
@@ -169,19 +169,19 @@ function build_exclusion_justification(
 )::String
     reasons = String[]
 
-    # ClinVar 狀態
+    # ClinVar status
     if !clinvar_assessment.is_pathogenic && !clinvar_assessment.is_likely_pathogenic
         push!(reasons, "No pathogenic ClinVar evidence")
     end
 
-    # 預測分數狀態
+    # Predictive score status
     support_count = predictive_assessment.support_count
     if support_count == 0
         push!(reasons, "No supporting predictive scores")
     elseif support_count == 1
-        # 檢查是哪個分數
+        # Check which score
         if has_primate_ai_support(predictive_assessment)
-            # 不應該到這裡，因為 PrimateAI-3D 單獨就應該通過
+            # Should not reach here, as PrimateAI-3D alone should pass
             push!(reasons, "Only PrimateAI-3D support (should not reach here)")
         else
             score_name = first(keys(predictive_assessment.contributing_scores))

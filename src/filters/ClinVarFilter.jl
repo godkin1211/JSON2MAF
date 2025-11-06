@@ -1,8 +1,8 @@
 """
 ClinVarFilter.jl
 
-ClinVar 致病性評估與優先級判斷模組
-根據 review status 與 clinical significance 判斷變異的致病性
+ClinVar pathogenicity assessment and priority determination module
+Determines variant pathogenicity based on review status and clinical significance
 """
 
 module ClinVarFilter
@@ -16,29 +16,29 @@ export assess_clinvar_pathogenicity, get_review_status_priority,
 """
     assess_clinvar_pathogenicity(entries::Vector{ClinVarEntry}) -> ClinVarAssessment
 
-評估 ClinVar 註解的致病性
+Assess pathogenicity of ClinVar annotations
 
-# 評估邏輯
-1. 過濾出 Pathogenic 或 Likely pathogenic 的條目
-2. 如有多筆符合條目，選擇最高優先級的條目
-3. 優先級判斷依據：review status > 癌症相關 > 最後更新時間
+# Assessment logic
+1. Filter entries that are Pathogenic or Likely pathogenic
+2. If multiple qualifying entries exist, select the highest priority entry
+3. Priority based on: review status > cancer-related > last updated time
 
-# 參數
-- `entries`: ClinVar 註解列表
+# Parameters
+- `entries`: List of ClinVar annotations
 
-# 返回
-- `ClinVarAssessment`: 包含致病性判斷與選定條目
+# Returns
+- `ClinVarAssessment`: Contains pathogenicity determination and selected entry
 
-# 範例
+# Example
 ```julia
 assessment = assess_clinvar_pathogenicity(variant.clinvar)
 if assessment.is_pathogenic
-    println("變異為致病性")
+    println("Variant is pathogenic")
 end
 ```
 """
 function assess_clinvar_pathogenicity(entries::Vector{ClinVarEntry})::ClinVarAssessment
-    # 如果沒有 ClinVar 註解，返回陰性結果
+    # If no ClinVar annotations, return negative result
     if isempty(entries)
         return ClinVarAssessment(
             false, false, nothing, "none",
@@ -46,10 +46,10 @@ function assess_clinvar_pathogenicity(entries::Vector{ClinVarEntry})::ClinVarAss
         )
     end
 
-    # 過濾 Pathogenic 和 Likely pathogenic 條目
+    # Filter Pathogenic and Likely pathogenic entries
     pathogenic_entries = filter(e -> is_pathogenic_entry(e), entries)
 
-    # 如果沒有致病性條目
+    # If no pathogenic entries
     if isempty(pathogenic_entries)
         return ClinVarAssessment(
             false, false, nothing, "none",
@@ -57,13 +57,13 @@ function assess_clinvar_pathogenicity(entries::Vector{ClinVarEntry})::ClinVarAss
         )
     end
 
-    # 選擇最佳條目
+    # Select best entry
     selected = resolve_conflicting_entries(pathogenic_entries)
 
-    # 判斷致病性等級
-    # 策略：如果提到任何形式的 "Pathogenic"（包括 "Pathogenic/Likely pathogenic"），
-    # 視為 Pathogenic（採用較強的證據）
-    # 只有純粹的 "Likely pathogenic"（沒有單獨的 "Pathogenic"）才視為 Likely pathogenic
+    # Determine pathogenicity level
+    # Strategy: If any form of "Pathogenic" is mentioned (including "Pathogenic/Likely pathogenic"),
+    # consider as Pathogenic (adopting stronger evidence)
+    # Only pure "Likely pathogenic" (without standalone "Pathogenic") is considered Likely pathogenic
     sig_lower = lowercase(selected.clinical_significance)
 
     # Check if contains standalone "Pathogenic" (not just "Likely pathogenic")
@@ -77,10 +77,10 @@ function assess_clinvar_pathogenicity(entries::Vector{ClinVarEntry})::ClinVarAss
     is_path = has_standalone_pathogenic
     is_likely_path = !has_standalone_pathogenic && has_likely_pathogenic
 
-    # 判斷信心等級
+    # Determine confidence level
     confidence = get_confidence_level(selected.review_status)
 
-    # 建立理由說明
+    # Build assessment reason
     reason = build_assessment_reason(selected, length(pathogenic_entries))
 
     return ClinVarAssessment(
@@ -95,7 +95,7 @@ end
 """
     is_pathogenic_entry(entry::ClinVarEntry) -> Bool
 
-判斷 ClinVar 條目是否為致病性 (Pathogenic 或 Likely pathogenic)
+Determine if ClinVar entry is pathogenic (Pathogenic or Likely pathogenic)
 """
 function is_pathogenic_entry(entry::ClinVarEntry)::Bool
     if entry.clinical_significance === nothing
@@ -110,9 +110,9 @@ end
 """
     get_review_status_priority(status::String) -> Int
 
-返回 review status 的優先級分數 (數字越小優先級越高)
+Return review status priority score (lower number = higher priority)
 
-# Review Status 優先級排序
+# Review Status Priority Order
 1. practice guideline
 2. reviewed by expert panel
 3. criteria provided, multiple submitters, no conflicts
@@ -120,7 +120,7 @@ end
 5. criteria provided, single submitter
 6. no assertion criteria provided
 7. no assertion provided
-8. 其他未知狀態
+8. Other unknown status
 """
 function get_review_status_priority(status::String)::Int
     status_lower = lowercase(status)
@@ -141,16 +141,16 @@ function get_review_status_priority(status::String)::Int
     elseif contains(status_lower, "no assertion provided")
         return 7
     else
-        return 8  # 未知狀態，最低優先級
+        return 8  # Unknown status, lowest priority
     end
 end
 
 """
     is_cancer_related(diseases::Vector{String}) -> Bool
 
-判斷疾病列表中是否包含癌症相關疾病
+Determine if disease list contains cancer-related diseases
 
-# 癌症關鍵字
+# Cancer keywords
 - cancer, carcinoma, tumor, tumour, malignant, neoplasm
 - lymphoma, leukemia, leukaemia, sarcoma, melanoma
 - glioma, blastoma, myeloma
@@ -177,22 +177,22 @@ end
 """
     resolve_conflicting_entries(entries::Vector{ClinVarEntry}) -> ClinVarEntry
 
-當多筆 ClinVar 註解存在時，選擇最佳條目
+When multiple ClinVar annotations exist, select the best entry
 
-# 優先級規則
-1. Review status 優先級最高 (practice guideline > expert panel > ...)
-2. 癌症相關疾病優先
-3. 最近更新時間優先
+# Priority rules
+1. Review status priority highest (practice guideline > expert panel > ...)
+2. Cancer-related diseases prioritized
+3. Most recent update time prioritized
 """
 function resolve_conflicting_entries(entries::Vector{ClinVarEntry})::ClinVarEntry
     if length(entries) == 1
         return entries[1]
     end
 
-    # 排序策略：
-    # 1. Review status 優先級 (越小越好)
-    # 2. 癌症相關 (true > false)
-    # 3. 最後更新時間 (越新越好)
+    # Sorting strategy:
+    # 1. Review status priority (lower is better)
+    # 2. Cancer-related (true > false)
+    # 3. Last update time (newer is better)
 
     sorted = sort(entries, lt = (a, b) -> begin
         # First compare by review status priority (lower is better)
@@ -221,7 +221,7 @@ end
 """
     get_confidence_level(review_status::String) -> String
 
-根據 review status 判斷信心等級
+Determine confidence level based on review status
 """
 function get_confidence_level(review_status::String)::String
     priority = get_review_status_priority(review_status)
@@ -238,23 +238,23 @@ end
 """
     build_assessment_reason(entry::ClinVarEntry, total_entries::Int) -> String
 
-建立評估理由說明
+Build assessment reason description
 """
 function build_assessment_reason(entry::ClinVarEntry, total_entries::Int)::String
     parts = String[]
 
-    # ClinVar 分類
+    # ClinVar classification
     push!(parts, "ClinVar: $(entry.clinical_significance)")
 
     # Review status
     push!(parts, "Review: $(entry.review_status)")
 
-    # 如有多筆條目
+    # If multiple entries
     if total_entries > 1
         push!(parts, "Selected from $(total_entries) entries")
     end
 
-    # 癌症相關
+    # Cancer-related
     if is_cancer_related(entry.diseases)
         push!(parts, "Cancer-related disease")
     end

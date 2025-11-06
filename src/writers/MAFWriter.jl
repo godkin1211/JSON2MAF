@@ -1,8 +1,8 @@
 """
 MAFWriter.jl
 
-MAF 檔案寫入模組
-將 MAFRecord 寫入為標準 MAF 格式檔案 (TSV)
+MAF file writing module
+Writes MAFRecord to standard MAF format file (TSV)
 """
 
 module MAFWriter
@@ -11,10 +11,10 @@ using CSV
 using DataFrames
 using ..DataStructures
 
-export write_maf_file, maf_header, mafrecord_to_row, create_maf_writer, write_maf_batch, close_maf_writer, get_total_written, merge_maf_files, count_maf_records
+export maf_header, mafrecord_to_row, create_maf_writer, write_maf_batch, close_maf_writer, get_total_written, merge_maf_files, count_maf_records
 
 """
-MAF 檔案標準欄位順序
+Standard MAF file column order
 """
 const MAF_COLUMNS = [
     "Hugo_Symbol",
@@ -51,7 +51,7 @@ const MAF_COLUMNS = [
 """
     maf_header() -> Vector{String}
 
-返回 MAF 檔案的標準表頭
+Return standard MAF file header
 """
 function maf_header()
     return MAF_COLUMNS
@@ -60,9 +60,9 @@ end
 """
     format_maf_value(val) -> String
 
-格式化 MAF 欄位值
-- nothing 或空字串 → "."
-- 其他值 → 轉為字串
+Format MAF field value
+- nothing or empty string → "."
+- Other values → Convert to string
 """
 function format_maf_value(val)
     if val === nothing || val == ""
@@ -75,13 +75,13 @@ end
 """
     mafrecord_to_row(record::MAFRecord) -> Vector{String}
 
-將 MAFRecord 轉換為 MAF 檔案的一行資料
+Convert MAFRecord to one row of MAF file data
 
-# 參數
-- `record`: MAFRecord 物件
+# Parameters
+- `record`: MAFRecord object
 
-# 返回
-- `Vector{String}`: 按照 MAF_COLUMNS 順序排列的欄位值
+# Returns
+- `Vector{String}`: Field values arranged in MAF_COLUMNS order
 """
 function mafrecord_to_row(record::MAFRecord)::Vector{String}
     return [
@@ -117,76 +117,21 @@ function mafrecord_to_row(record::MAFRecord)::Vector{String}
     ]
 end
 
-"""
-    write_maf_file(output_path::String, records::Vector{MAFRecord}; append::Bool=false)
-
-將 MAFRecord 列表寫入 MAF 檔案
-
-# 參數
-- `output_path`: 輸出檔案路徑
-- `records`: MAFRecord 向量
-- `append`: 是否追加模式（預設 false，會覆蓋現有檔案）
-
-# 範例
-```julia
-records = [maf_record1, maf_record2, ...]
-write_maf_file("output.maf", records)
-```
-
-# 注意
-- MAF 格式為 TSV (tab-separated values)
-- 第一行為標準表頭
-- 空值以 "." 表示
-"""
-function write_maf_file(output_path::String, records::Vector{MAFRecord}; append::Bool=false)
-    # 如果沒有記錄，只寫入表頭
-    if isempty(records)
-        open(output_path, "w") do io
-            println(io, join(maf_header(), "\t"))
-        end
-        return
-    end
-
-    # 轉換所有記錄為行資料
-    rows = [mafrecord_to_row(record) for record in records]
-
-    # 建立 DataFrame
-    df = DataFrame([col => [row[i] for row in rows] for (i, col) in enumerate(MAF_COLUMNS)])
-
-    # 寫入檔案
-    if append && isfile(output_path)
-        # 追加模式：不寫入表頭
-        CSV.write(output_path, df, delim='\t', append=true)
-    else
-        # 覆蓋模式：寫入表頭
-        CSV.write(output_path, df, delim='\t')
-    end
-end
-
-"""
-    write_maf_file(output_path::String, record::MAFRecord; append::Bool=false)
-
-寫入單一 MAFRecord（便利函數）
-"""
-function write_maf_file(output_path::String, record::MAFRecord; append::Bool=false)
-    write_maf_file(output_path, [record], append=append)
-end
-
 # ============================================================================
-# 批次寫入 API - 用於優化大檔案處理效能
+# Batch write API - for optimizing large file processing performance
 # ============================================================================
 
 """
     MAFBatchWriter
 
-批次 MAF 寫入器，用於優化大量記錄的寫入效能
+Batch MAF writer for optimizing write performance of large numbers of records
 
-# 欄位
-- `output_path`: 輸出檔案路徑
-- `io`: 檔案句柄
-- `buffer`: 記錄緩衝區
-- `batch_size`: 批次大小
-- `total_written`: 已寫入記錄總數
+# Fields
+- `output_path`: Output file path
+- `io`: File handle
+- `buffer`: Record buffer
+- `batch_size`: Batch size
+- `total_written`: Total number of records written
 """
 mutable struct MAFBatchWriter
     output_path::String
@@ -199,31 +144,31 @@ end
 """
     create_maf_writer(output_path::String; batch_size::Int=1000) -> MAFBatchWriter
 
-創建批次 MAF 寫入器
+Create batch MAF writer
 
-# 參數
-- `output_path`: 輸出檔案路徑
-- `batch_size`: 批次大小（預設 1000），累積這麼多記錄後才寫入
+# Parameters
+- `output_path`: Output file path
+- `batch_size`: Batch size (default 1000), write after accumulating this many records
 
-# 返回
-- `MAFBatchWriter`: 批次寫入器實例
+# Returns
+- `MAFBatchWriter`: Batch writer instance
 
-# 使用方式
+# Usage
 ```julia
 writer = create_maf_writer("output.maf", batch_size=1000)
 for record in records
     write_maf_batch(writer, record)
 end
-close_maf_writer(writer)  # 別忘了關閉！
+close_maf_writer(writer)  # Don't forget to close!
 ```
 
-# 效能優勢
-- 減少 I/O 次數
-- 批次處理提升效率
-- 適合處理大量記錄
+# Performance advantages
+- Reduces I/O operations
+- Batch processing improves efficiency
+- Suitable for handling large numbers of records
 """
 function create_maf_writer(output_path::String; batch_size::Int=1000)::MAFBatchWriter
-    # 打開檔案並寫入表頭
+    # Open file and write header
     io = open(output_path, "w")
     println(io, join(maf_header(), "\t"))
 
@@ -239,18 +184,18 @@ end
 """
     write_maf_batch(writer::MAFBatchWriter, record::MAFRecord)
 
-將記錄加入批次寫入器
+Add record to batch writer
 
-當緩衝區達到 batch_size 時自動寫入檔案。
+Automatically writes to file when buffer reaches batch_size.
 
-# 參數
-- `writer`: 批次寫入器
-- `record`: 要寫入的 MAF 記錄
+# Parameters
+- `writer`: Batch writer
+- `record`: MAF record to write
 """
 function write_maf_batch(writer::MAFBatchWriter, record::MAFRecord)
     push!(writer.buffer, record)
 
-    # 當緩衝區滿時，寫入檔案
+    # When buffer is full, write to file
     if length(writer.buffer) >= writer.batch_size
         flush_buffer(writer)
     end
@@ -259,39 +204,39 @@ end
 """
     flush_buffer(writer::MAFBatchWriter)
 
-將緩衝區的記錄寫入檔案
+Write buffered records to file
 """
 function flush_buffer(writer::MAFBatchWriter)
     if isempty(writer.buffer)
         return
     end
 
-    # 將所有緩衝的記錄轉換為行並寫入
+    # Convert all buffered records to rows and write
     for record in writer.buffer
         row = mafrecord_to_row(record)
         println(writer.io, join(row, "\t"))
     end
 
     writer.total_written += length(writer.buffer)
-    empty!(writer.buffer)  # 清空緩衝區
+    empty!(writer.buffer)  # Clear buffer
 end
 
 """
     close_maf_writer(writer::MAFBatchWriter)
 
-關閉批次寫入器並確保所有資料已寫入
+Close batch writer and ensure all data is written
 
-# 參數
-- `writer`: 批次寫入器
+# Parameters
+- `writer`: Batch writer
 
-# 注意
-必須呼叫此函數以確保所有緩衝的記錄都寫入檔案！
+# Notes
+Must call this function to ensure all buffered records are written to file!
 """
 function close_maf_writer(writer::MAFBatchWriter)
-    # 寫入剩餘的緩衝記錄
+    # Write remaining buffered records
     flush_buffer(writer)
 
-    # 關閉檔案
+    # Close file
     if writer.io !== nothing
         close(writer.io)
         writer.io = nothing
@@ -301,32 +246,32 @@ end
 """
     get_total_written(writer::MAFBatchWriter) -> Int
 
-返回已寫入的記錄總數
+Return total number of records written
 """
 function get_total_written(writer::MAFBatchWriter)::Int
     return writer.total_written + length(writer.buffer)
 end
 
 # ============================================================================
-# MAF 檔案合併 - 用於多執行緒並行處理
+# MAF file merging - for multi-threaded parallel processing
 # ============================================================================
 
 """
     merge_maf_files(input_files::Vector{String}, output_file::String; keep_temp::Bool=false)
 
-合併多個 MAF 檔案為單一檔案
+Merge multiple MAF files into a single file
 
-這個函數用於合併多執行緒並行處理產生的多個 MAF 檔案。
-會保留所有記錄，並確保只有一個標準表頭。
+This function is used to merge multiple MAF files generated by multi-threaded parallel processing.
+Preserves all records and ensures only one standard header.
 
-# 參數
-- `input_files`: 輸入 MAF 檔案路徑列表
-- `output_file`: 輸出合併後的 MAF 檔案路徑
-- `keep_temp`: 是否保留臨時檔案（預設 false，會刪除）
+# Parameters
+- `input_files`: List of input MAF file paths
+- `output_file`: Output merged MAF file path
+- `keep_temp`: Whether to keep temporary files (default false, will delete)
 
-# 使用範例
+# Usage example
 ```julia
-# 並行處理後合併
+# Merge after parallel processing
 merge_maf_files(
     ["output_1.maf", "output_2.maf", "output_3.maf"],
     "final_output.maf",
@@ -334,31 +279,31 @@ merge_maf_files(
 )
 ```
 
-# 注意事項
-- 輸入檔案必須都存在
-- 所有輸入檔案必須有相同的欄位結構
-- 預設會刪除臨時檔案以節省空間
+# Notes
+- Input files must all exist
+- All input files must have the same field structure
+- Default deletes temporary files to save space
 """
 function merge_maf_files(input_files::Vector{String}, output_file::String; keep_temp::Bool=false)
-    # 檢查輸入檔案
+    # Check input files
     for file in input_files
         if !isfile(file)
             error("Input file not found: $file")
         end
     end
 
-    # 開啟輸出檔案並寫入表頭
+    # Open output file and write header
     open(output_file, "w") do out_io
-        # 寫入標準表頭
+        # Write standard header
         println(out_io, join(maf_header(), "\t"))
 
-        # 逐一讀取並合併每個輸入檔案
+        # Read and merge each input file one by one
         for (idx, input_file) in enumerate(input_files)
             open(input_file, "r") do in_io
-                # 跳過輸入檔案的表頭
+                # Skip input file header
                 readline(in_io)
 
-                # 複製所有資料行
+                # Copy all data rows
                 while !eof(in_io)
                     line = readline(in_io)
                     if !isempty(strip(line))
@@ -369,7 +314,7 @@ function merge_maf_files(input_files::Vector{String}, output_file::String; keep_
         end
     end
 
-    # 刪除臨時檔案（如果需要）
+    # Delete temporary files (if needed)
     if !keep_temp
         for file in input_files
             try
@@ -386,13 +331,13 @@ end
 """
     count_maf_records(filepath::String) -> Int
 
-計算 MAF 檔案中的記錄數（不含表頭）
+Count number of records in MAF file (excluding header)
 
-# 參數
-- `filepath`: MAF 檔案路徑
+# Parameters
+- `filepath`: MAF file path
 
-# 返回
-- `Int`: 記錄數量
+# Returns
+- `Int`: Number of records
 """
 function count_maf_records(filepath::String)::Int
     if !isfile(filepath)
@@ -401,10 +346,10 @@ function count_maf_records(filepath::String)::Int
 
     count = 0
     open(filepath, "r") do io
-        # 跳過表頭
+        # Skip header
         readline(io)
 
-        # 計數非空行
+        # Count non-empty lines
         while !eof(io)
             line = readline(io)
             if !isempty(strip(line))

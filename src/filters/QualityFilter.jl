@@ -1,8 +1,8 @@
 """
 QualityFilter.jl
 
-品質與族群頻率預過濾模組
-在進行 ClinVar 評估前先過濾低品質與常見變異
+Quality and population frequency prefiltering module
+Filters low-quality and common variants before ClinVar assessment
 """
 
 module QualityFilter
@@ -14,32 +14,32 @@ export apply_quality_filters, check_sequencing_quality, check_population_frequen
 """
     apply_quality_filters(variant::VariantPosition, config::FilterConfig) -> QualityFilterResult
 
-對單一變異位點應用品質過濾規則
+Apply quality filtering rules to a single variant position
 
-# 過濾規則
-1. 測序深度 (totalDepth) >= min_total_depth (預設 30)
-2. 變異頻率 (variantFrequencies) >= min_variant_frequency (預設 0.03)
-3. 東亞族群頻率 (easAf) <= max_eas_af (預設 0.01)
+# Filtering rules
+1. Sequencing depth (totalDepth) >= min_total_depth (default 30)
+2. Variant frequency (variantFrequencies) >= min_variant_frequency (default 0.03)
+3. East Asian population frequency (easAf) <= max_eas_af (default 0.01)
 
-# 參數
-- `variant`: 變異位點資料
-- `config`: 過濾配置參數
+# Parameters
+- `variant`: Variant position data
+- `config`: Filter configuration parameters
 
-# 返回
-- `QualityFilterResult`: 包含是否通過及失敗原因
+# Returns
+- `QualityFilterResult`: Contains whether passed and failure reason
 
-# 範例
+# Example
 ```julia
 result = apply_quality_filters(variant, config)
 if result.passes_quality
-    println("通過品質過濾")
+    println("Passed quality filtering")
 else
-    println("未通過: \$(result.failure_reason)")
+    println("Failed: \$(result.failure_reason)")
 end
 ```
 """
 function apply_quality_filters(variant::VariantPosition, config::FilterConfig)::QualityFilterResult
-    # 檢查 VCF filters 欄位：只接受 ["PASS"]
+    # Check VCF filters field: only accept ["PASS"]
     if !(length(variant.filters) == 1 && variant.filters[1] == "PASS")
         filters_str = join(variant.filters, ", ")
         return QualityFilterResult(
@@ -51,7 +51,7 @@ function apply_quality_filters(variant::VariantPosition, config::FilterConfig)::
         )
     end
 
-    # 檢查測序品質
+    # Check sequencing quality
     seq_pass, seq_reason = check_sequencing_quality(variant, config)
     if !seq_pass
         return QualityFilterResult(
@@ -63,7 +63,7 @@ function apply_quality_filters(variant::VariantPosition, config::FilterConfig)::
         )
     end
 
-    # 檢查族群頻率
+    # Check population frequency
     pop_pass, pop_reason, eas_af = check_population_frequency(variant, config)
     if !pop_pass
         return QualityFilterResult(
@@ -75,7 +75,7 @@ function apply_quality_filters(variant::VariantPosition, config::FilterConfig)::
         )
     end
 
-    # 全部通過
+    # All passed
     return QualityFilterResult(
         true,
         nothing,
@@ -88,17 +88,17 @@ end
 """
     check_sequencing_quality(variant::VariantPosition, config::FilterConfig) -> Tuple{Bool, String}
 
-檢查測序品質是否符合標準
+Check if sequencing quality meets standards
 
-# 檢查項目
+# Check items
 - totalDepth >= min_total_depth
 - variantFrequencies >= min_variant_frequency
 
-# 返回
-- (通過與否, 失敗原因)
+# Returns
+- (Pass or fail, Failure reason)
 """
 function check_sequencing_quality(variant::VariantPosition, config::FilterConfig)::Tuple{Bool, String}
-    # 檢查測序深度
+    # Check sequencing depth
     if variant.total_depth === nothing
         return (false, "Missing totalDepth")
     end
@@ -107,7 +107,7 @@ function check_sequencing_quality(variant::VariantPosition, config::FilterConfig
         return (false, "Low sequencing depth ($(variant.total_depth) < $(config.min_total_depth))")
     end
 
-    # 檢查變異頻率
+    # Check variant frequency
     vaf = get_variant_frequency(variant)
     if vaf === nothing
         return (false, "Missing variant frequency")
@@ -123,17 +123,17 @@ end
 """
     check_population_frequency(variant::VariantPosition, config::FilterConfig) -> Tuple{Bool, String, Union{Float64, Nothing}}
 
-檢查東亞族群頻率是否低於閾值
+Check if East Asian population frequency is below threshold
 
-優先順序:
-1. 檢查 gnomad-exome 的 easAf
-2. 檢查 oneKg 的 easAf
+Priority:
+1. Check gnomad-exome easAf
+2. Check oneKg easAf
 
-# 返回
-- (通過與否, 失敗原因, 東亞AF值)
+# Returns
+- (Pass or fail, Failure reason, East Asian AF value)
 """
 function check_population_frequency(variant::VariantPosition, config::FilterConfig)::Tuple{Bool, String, Union{Float64, Nothing}}
-    # 嘗試從 gnomad-exome 提取 easAf
+    # Try to extract easAf from gnomad-exome
     gnomad_exome_af = extract_gnomad_exome_eas_af(variant)
     if gnomad_exome_af !== nothing
         if gnomad_exome_af > config.max_eas_af
@@ -142,7 +142,7 @@ function check_population_frequency(variant::VariantPosition, config::FilterConf
         return (true, "", gnomad_exome_af)
     end
 
-    # 嘗試從 oneKg 提取 easAf
+    # Try to extract easAf from oneKg
     onekg_af = extract_onekg_eas_af(variant)
     if onekg_af !== nothing
         if onekg_af > config.max_eas_af
@@ -151,14 +151,14 @@ function check_population_frequency(variant::VariantPosition, config::FilterConf
         return (true, "", onekg_af)
     end
 
-    # 沒有族群頻率資料，視為通過（保守策略）
+    # No population frequency data, consider as pass (conservative strategy)
     return (true, "", nothing)
 end
 
 """
     extract_gnomad_exome_eas_af(variant::VariantPosition) -> Union{Float64, Nothing}
 
-從 gnomad-exome 族群頻率中提取東亞族群 AF
+Extract East Asian population AF from gnomad-exome population frequency
 """
 function extract_gnomad_exome_eas_af(variant::VariantPosition)::Union{Float64, Nothing}
     for pf in variant.population_frequencies
@@ -172,7 +172,7 @@ end
 """
     extract_onekg_eas_af(variant::VariantPosition) -> Union{Float64, Nothing}
 
-從 1000 Genomes 族群頻率中提取東亞族群 AF
+Extract East Asian population AF from 1000 Genomes population frequency
 """
 function extract_onekg_eas_af(variant::VariantPosition)::Union{Float64, Nothing}
     for pf in variant.population_frequencies
@@ -186,7 +186,7 @@ end
 """
     get_variant_frequency(variant::VariantPosition) -> Union{Float64, Nothing}
 
-提取變異頻率（取第一個值）
+Extract variant frequency (take first value)
 """
 function get_variant_frequency(variant::VariantPosition)::Union{Float64, Nothing}
     if variant.variant_frequencies !== nothing && length(variant.variant_frequencies) > 0

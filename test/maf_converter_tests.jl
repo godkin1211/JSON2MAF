@@ -1,15 +1,15 @@
 """
 maf_converter_tests.jl
 
-測試 MAF 格式轉換功能
+Test MAF format conversion functionality
 """
 
 using Test
 using JSON2MAF
 
-@testset "MAF 格式轉換測試" begin
+@testset "MAF Format Conversion Tests" begin
 
-    @testset "Variant Classification 映射" begin
+    @testset "Variant Classification Mapping" begin
         @test map_variant_classification("missense_variant") == "Missense_Mutation"
         @test map_variant_classification("stop_gained") == "Nonsense_Mutation"
         @test map_variant_classification("frameshift_variant") == "Frame_Shift_Indel"
@@ -26,7 +26,7 @@ using JSON2MAF
         @test map_variant_classification("inframe_insertion") == "In_Frame_Ins"
     end
 
-    @testset "Variant Type 映射" begin
+    @testset "Variant Type Mapping" begin
         # SNP
         @test map_variant_type("A", "G") == "SNP"
         @test map_variant_type("C", "T") == "SNP"
@@ -50,7 +50,7 @@ using JSON2MAF
         @test map_variant_type("AAA", "") == "DEL"
     end
 
-    @testset "HGVS 提取" begin
+    @testset "HGVS Extraction" begin
         transcript = TranscriptAnnotation(
             "ENST00000123456",  # id
             "TP53",              # gene_symbol
@@ -68,21 +68,21 @@ using JSON2MAF
 
         @test hgvsc == "c.215C>G"
         @test hgvsp == "p.Pro72Arg"
-        @test hgvsp_short != "."  # 應該有值
+        @test hgvsp_short != "."  # Should have a value
     end
 
-    @testset "Canonical Transcript 選擇" begin
-        # 測試空列表
+    @testset "Canonical Transcript Selection" begin
+        # Test empty list
         @test select_canonical_transcript(TranscriptAnnotation[]) === nothing
 
-        # 測試單一 transcript
+        # Test single transcript
         t1 = TranscriptAnnotation(
             "ENST00000123456", "TP53", nothing, ["missense_variant"],
             "V/M", 100, 99, 33, "c.215C>G", "p.Pro72Arg"
         )
         @test select_canonical_transcript([t1]) === t1
 
-        # 測試多個 transcripts - Nirvana 將 canonical 放在第一位
+        # Test multiple transcripts - Nirvana places canonical first
         t2 = TranscriptAnnotation(
             "ENST00000222222", "TP53", nothing, ["missense_variant"],
             "V/M", 100, 99, 33, "c.215C>G", "p.Pro72Arg"
@@ -92,15 +92,15 @@ using JSON2MAF
             "V/M", 100, 99, 33, "c.215C>G", "p.Pro72Arg"
         )
 
-        # 應該選擇第一個 (canonical)
+        # Should select the first one (canonical)
         @test select_canonical_transcript([t2, t1, t3]) === t2
 
-        # 總是選第一個
+        # Always select the first one
         @test select_canonical_transcript([t1, t3]) === t1
     end
 
-    @testset "完整 MAF 轉換" begin
-        # 創建測試變異
+    @testset "Complete MAF Conversion" begin
+        # Create test variant
         transcript = TranscriptAnnotation(
             "ENST00000269305",  # id
             "TP53",              # gene_symbol
@@ -166,7 +166,7 @@ using JSON2MAF
 
         maf_record = variant_to_maf(variant, decision)
 
-        # 驗證基本欄位
+        # Verify basic fields
         @test maf_record.hugo_symbol == "TP53"
         @test maf_record.chromosome == "chr17"
         @test maf_record.start_position == 7579472
@@ -174,49 +174,49 @@ using JSON2MAF
         @test maf_record.reference_allele == "G"
         @test maf_record.tumor_seq_allele2 == "C"
 
-        # 驗證變異分類
+        # Verify variant classification
         @test maf_record.variant_classification == "Missense_Mutation"
         @test maf_record.variant_type == "SNP"
 
-        # 驗證 HGVS
+        # Verify HGVS
         @test maf_record.hgvsc == "c.215C>G"
         @test maf_record.hgvsp == "p.Pro72Arg"
 
-        # 驗證 Transcript ID
+        # Verify Transcript ID
         @test maf_record.transcript_id == "ENST00000269305"
 
-        # 驗證 ClinVar
+        # Verify ClinVar
         @test maf_record.clinvar_id == "RCV000012345"
         @test maf_record.clinvar_review_status == "reviewed by expert panel"
         @test maf_record.clinvar_significance == "Pathogenic"
         @test occursin("Li-Fraumeni", maf_record.clinvar_disease)
 
-        # 驗證 COSMIC
+        # Verify COSMIC
         @test maf_record.cosmic_id == "COSM43598"
 
-        # 驗證 dbSNP
+        # Verify dbSNP
         @test maf_record.dbsnp_rs == "rs1042522"
 
-        # 驗證預測分數 (應該是字串)
+        # Verify predictive scores (should be strings)
         @test maf_record.primate_ai_score == "0.85"
         @test maf_record.dann_score == "0.98"
-        @test maf_record.revel_score == "0.8"  # Julia string() 會移除尾部的 0
+        @test maf_record.revel_score == "0.8"  # Julia string() removes trailing 0
 
-        # 驗證 gnomAD AF
+        # Verify gnomAD AF
         @test maf_record.gnomad_af == "0.02"
         @test maf_record.gnomad_eas_af == "0.01"
 
-        # 驗證 depth 和 VAF
+        # Verify depth and VAF
         @test maf_record.depth == "150"
         @test maf_record.vaf == "0.45"
     end
 
-    @testset "缺失欄位處理" begin
-        # 創建沒有 transcripts 的變異
+    @testset "Missing Field Handling" begin
+        # Create variant without transcripts
         variant = VariantPosition(
             "chr1", 100, 100, "A", "G", "SNV",
             100, [0.5],
-            TranscriptAnnotation[],  # 空 transcripts
+            TranscriptAnnotation[],  # Empty transcripts
             ClinVarEntry[],
             CosmicEntry[],
             PopulationFrequency[],
@@ -228,7 +228,7 @@ using JSON2MAF
 
         maf_record = variant_to_maf(variant, decision)
 
-        # 驗證缺失值處理為 "."
+        # Verify missing values are handled as "."
         @test maf_record.hugo_symbol == "."
         @test maf_record.variant_classification == "."
         @test maf_record.hgvsc == "."
@@ -241,7 +241,7 @@ using JSON2MAF
         @test maf_record.gnomad_af === nothing
     end
 
-    @testset "多個 COSMIC ID 處理" begin
+    @testset "Multiple COSMIC ID Handling" begin
         cosmic1 = CosmicEntry("COSM111", "TP53", "missense", 50)
         cosmic2 = CosmicEntry("COSM222", "TP53", "missense", 30)
 
@@ -250,7 +250,7 @@ using JSON2MAF
             100, [0.5],
             TranscriptAnnotation[],
             ClinVarEntry[],
-            [cosmic1, cosmic2],  # 多個 COSMIC
+            [cosmic1, cosmic2],  # Multiple COSMIC
             PopulationFrequency[],
             nothing, nothing, nothing, nothing,
             String[]
@@ -259,13 +259,13 @@ using JSON2MAF
         decision = FilterDecision(true, "Likely pathogenic", "Predictive", "Reason")
         maf_record = variant_to_maf(variant, decision)
 
-        # 應該用 ; 分隔多個 IDs
+        # Should separate multiple IDs with ;
         @test occursin("COSM111", maf_record.cosmic_id)
         @test occursin("COSM222", maf_record.cosmic_id)
         @test occursin(";", maf_record.cosmic_id)
     end
 
-    @testset "多個疾病名稱處理" begin
+    @testset "Multiple Disease Name Handling" begin
         clinvar_entry = ClinVarEntry(
             "RCV12345", "12345",
             "Pathogenic",
@@ -288,7 +288,7 @@ using JSON2MAF
         decision = FilterDecision(true, "Pathogenic", "ClinVar", "Reason")
         maf_record = variant_to_maf(variant, decision)
 
-        # 疾病名稱應該用 ; 分隔
+        # Disease names should be separated with ;
         @test occursin("Disease A", maf_record.clinvar_disease)
         @test occursin("Disease B", maf_record.clinvar_disease)
         @test occursin(";", maf_record.clinvar_disease)
