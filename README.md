@@ -101,20 +101,24 @@ julia --project=. -t 6 bin/json2maf.jl \
 ### Command-Line Options
 
 **Required Arguments**:
+
 - `-i, --input FILE`: Input Nirvana JSON.gz file path
 - `-o, --output FILE`: Output MAF file path
 
 **Quality Filtering Parameters**:
+
 - `--min-depth INT`: Minimum sequencing depth (default: 30)
 - `--min-vaf FLOAT`: Minimum variant allele frequency (default: 0.03)
 - `--max-eas-af FLOAT`: Maximum East Asian allele frequency (default: 0.01)
 
 **Predictive Score Thresholds**:
+
 - `--min-revel FLOAT`: REVEL score threshold (default: 0.75)
 - `--min-primate-ai FLOAT`: PrimateAI-3D score threshold (default: 0.8)
 - `--min-dann FLOAT`: DANN score threshold (default: 0.96)
 
 **Other Options**:
+
 - `-v, --verbose`: Enable verbose output
 - `-q, --quiet`: Suppress progress bar
 - `--stats FILE`: Save statistics report to file
@@ -135,6 +139,7 @@ julia --project=. -t 8 bin/json2maf.jl -i input.json.gz -o output.maf
 ```
 
 **Recommended thread counts**:
+
 - 4 threads: Standard workstations
 - 6-8 threads: High-performance workstations
 - 16+ threads: Server environments
@@ -265,12 +270,14 @@ The input must be a gzipped JSON file produced by Illumina Nirvana annotation pi
 ### Recommended Use Cases
 
 ✅ **Appropriate for**:
+
 - Somatic variant calling from tumor samples
 - Germline variant analysis for cancer predisposition
 - Research cohort variant prioritization
 - Clinical biomarker discovery
 
 ❌ **Not recommended for**:
+
 - Direct clinical diagnostic reporting (requires expert review)
 - Pharmacogenomics applications
 - Population genetics studies
@@ -337,6 +344,7 @@ julia --project=. -e 'using Pkg; Pkg.test()'
 Current status: ✅ **435/435 tests passing**
 
 Test coverage includes:
+
 - Data structure validation
 - JSON parsing accuracy
 - Quality filtering logic
@@ -350,30 +358,36 @@ Test coverage includes:
 ### Common Issues
 
 **Issue**: Out of memory errors
+
 - **Solution**: Reduce thread count or process smaller batches
 
 **Issue**: Slow processing with multiple threads
+
 - **Solution**: Verify `JULIA_NUM_THREADS` is set correctly
 
 **Issue**: No variants in output
+
 - **Solution**: Check filtering parameters (may be too stringent)
 
 **Issue**: Missing predictive scores
+
 - **Solution**: Ensure Nirvana annotation included all databases
 
 ## Contributing
 
 This is an internal research tool. For questions or suggestions, please contact:
+
 - Project bioinformaticians
 - Product managers
 
 ## Citation
 
 If you use this tool in your research, please cite:
+
 ```
 JSON2MAF: A high-performance variant filtering tool for oncology research
 [Your Organization]
-Version 0.4.0 (2024)
+Version 0.4.0 (2025)
 ```
 
 ## License
@@ -390,5 +404,5 @@ Internal use only for oncology research and drug development.
 ---
 
 **Version**: 0.4.0
-**Last Updated**: November 2024
+**Last Updated**: November 2025
 **Status**: Production-ready
