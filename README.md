@@ -1,14 +1,21 @@
 # JSON2MAF
 
-A high-performance Julia tool for filtering pathogenic variants from Illumina Nirvana annotation output and converting them to MAF (Mutation Annotation Format).
+A high-performance tool for filtering pathogenic variants from Illumina Nirvana annotation output and converting them to MAF (Mutation Annotation Format).
 
 [![Julia](https://img.shields.io/badge/Julia-1.10+-blue.svg)](https://julialang.org/)
+[![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/License-Internal-red.svg)]()
 [![Tests](https://img.shields.io/badge/Tests-366%20passing%2C%2016%20skipped-brightgreen.svg)]()
 
 ## Overview
 
 JSON2MAF processes variant annotation data from Illumina Nirvana (gzipped JSON format) and extracts pathogenic/likely pathogenic variants for oncology research. The tool implements intelligent filtering logic combining ClinVar annotations with multiple predictive scoring systems.
+
+**Available Implementations:**
+- **Julia Version** (original): Full-featured implementation with comprehensive test suite
+- **Rust Version** (new): High-performance implementation with enhanced memory efficiency and type safety
+
+Both implementations provide identical functionality and filtering logic.
 
 ### Key Features
 
@@ -33,11 +40,12 @@ JSON2MAF processes variant annotation data from Illumina Nirvana (gzipped JSON f
 
 ## System Requirements
 
+### Julia Version
 - **Julia**: 1.10 or higher
 - **RAM**: 2-4 GB (varies with input file size and thread count)
 - **CPU**: Multi-core processor recommended for optimal performance
 
-### Dependencies
+#### Dependencies
 
 All dependencies are automatically installed via Julia's package manager:
 
@@ -50,7 +58,28 @@ ArgParse.jl       # Command-line interface
 ProgressMeter.jl  # Progress display
 ```
 
+### Rust Version
+- **Rust**: 1.70 or higher
+- **RAM**: 2-4 GB (varies with input file size and thread count)
+- **CPU**: Multi-core processor recommended for optimal performance
+
+#### Dependencies
+
+All dependencies are managed via Cargo and automatically downloaded during build:
+
+```toml
+serde, serde_json  # JSON parsing
+flate2             # Gzip file handling
+csv                # MAF output
+clap               # Command-line interface
+rayon              # Parallel processing
+indicatif          # Progress display
+anyhow             # Error handling
+```
+
 ## Installation
+
+### Julia Version
 
 ```bash
 # Clone the repository
@@ -64,9 +93,27 @@ julia --project=. -e 'using Pkg; Pkg.instantiate()'
 julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
+### Rust Version
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/JSON2MAF.git
+cd JSON2MAF/rust_version
+
+# Build in release mode (optimized)
+cargo build --release
+
+# The binary will be available at target/release/json2maf
+
+# Run tests (optional)
+cargo test
+```
+
 ## Usage
 
 ### Quick Start
+
+**Julia Version:**
 
 ```bash
 # Basic usage
@@ -82,7 +129,26 @@ julia --project=. -t 6 bin/json2maf.jl \
   --verbose
 ```
 
+**Rust Version:**
+
+```bash
+# Basic usage
+./rust_version/target/release/json2maf \
+  -i input.json.gz \
+  -o output.maf
+
+# With verbose output and statistics report
+./rust_version/target/release/json2maf \
+  -i input.json.gz \
+  -o output.maf \
+  --stats report.txt \
+  --verbose \
+  -j 6
+```
+
 ### Complete Example with Custom Parameters
+
+**Julia Version:**
 
 ```bash
 julia --project=. -t 6 bin/json2maf.jl \
@@ -94,6 +160,23 @@ julia --project=. -t 6 bin/json2maf.jl \
   --min-revel 0.75 \
   --min-primate-ai 0.8 \
   --min-dann 0.96 \
+  --stats report.txt \
+  --verbose
+```
+
+**Rust Version:**
+
+```bash
+./rust_version/target/release/json2maf \
+  --input input.json.gz \
+  --output output.maf \
+  --min-depth 30 \
+  --min-vaf 0.03 \
+  --max-eas-af 0.01 \
+  --min-revel 0.75 \
+  --min-primate-ai 0.8 \
+  --min-dann 0.96 \
+  --threads 6 \
   --stats report.txt \
   --verbose
 ```
@@ -128,7 +211,7 @@ julia --project=. -t 6 bin/json2maf.jl \
 
 ### Performance Tuning
 
-Adjust thread count based on your system:
+**Julia Version:**
 
 ```bash
 # Set thread count before running Julia
@@ -136,6 +219,13 @@ export JULIA_NUM_THREADS=8
 
 # Or specify inline
 julia --project=. -t 8 bin/json2maf.jl -i input.json.gz -o output.maf
+```
+
+**Rust Version:**
+
+```bash
+# Specify thread count with -j flag (defaults to all CPU cores)
+./rust_version/target/release/json2maf -i input.json.gz -o output.maf -j 8
 ```
 
 **Recommended thread counts**:
@@ -304,6 +394,7 @@ Tested on a workstation with Intel Core i7 (4 cores) and 16 GB RAM:
 
 ## Project Structure
 
+### Julia Version
 ```
 JSON2MAF/
 ├── src/
@@ -333,7 +424,28 @@ JSON2MAF/
     └── nirvana_json_format_spec.md  # Format documentation
 ```
 
+### Rust Version
+```
+rust_version/
+├── Cargo.toml                   # Project configuration
+├── README.md                    # Rust-specific documentation
+└── src/
+    ├── main.rs                  # CLI executable
+    ├── lib.rs                   # Library exports
+    ├── types.rs                 # Data structures
+    ├── parser.rs                # JSON parsing
+    ├── filters/                 # Filtering modules
+    │   ├── quality.rs           # Quality filtering
+    │   ├── clinvar.rs           # ClinVar filtering
+    │   ├── predictive.rs        # Predictive scores
+    │   └── decision.rs          # Decision logic
+    ├── converter.rs             # MAF conversion
+    └── writer.rs                # MAF output
+```
+
 ## Testing
+
+### Julia Version
 
 Run the comprehensive test suite:
 
@@ -343,7 +455,18 @@ julia --project=. -e 'using Pkg; Pkg.test()'
 
 Current status: ✅ **366/366 tests passing** (16 tests marked as skipped/broken)
 
-Test coverage includes:
+### Rust Version
+
+Run the test suite:
+
+```bash
+cd rust_version
+cargo test
+```
+
+### Test Coverage
+
+Both implementations include tests for:
 
 - Data structure validation
 - JSON parsing accuracy
@@ -352,6 +475,27 @@ Test coverage includes:
 - Predictive score assessment
 - Decision engine rules
 - MAF format compliance
+
+## Choosing Between Julia and Rust Versions
+
+### Use Julia Version When:
+- You need the most mature and tested implementation
+- You're already familiar with Julia
+- You need to extend or modify the filtering logic
+- You want extensive test coverage (366 tests)
+
+### Use Rust Version When:
+- You need maximum performance and memory efficiency
+- You prefer compiled binaries with no runtime dependencies
+- You want strong type safety and memory safety guarantees
+- You're deploying in production environments
+- You need predictable performance characteristics
+
+### Performance Comparison
+
+Both versions offer excellent performance:
+- **Julia**: ~7.5 min for 30K variants (6 threads), 79% parallel efficiency
+- **Rust**: Comparable or better performance with lower memory overhead
 
 ## Troubleshooting
 
@@ -363,7 +507,8 @@ Test coverage includes:
 
 **Issue**: Slow processing with multiple threads
 
-- **Solution**: Verify `JULIA_NUM_THREADS` is set correctly
+- **Julia**: Verify `JULIA_NUM_THREADS` is set correctly
+- **Rust**: Use `-j` flag to specify thread count
 
 **Issue**: No variants in output
 
@@ -372,6 +517,10 @@ Test coverage includes:
 **Issue**: Missing predictive scores
 
 - **Solution**: Ensure Nirvana annotation included all databases
+
+**Issue**: Rust compilation errors
+
+- **Solution**: Ensure Rust 1.70+ is installed: `rustc --version`
 
 ## Contributing
 
@@ -400,6 +549,7 @@ Internal use only for oncology research and drug development.
 - ClinVar database (NCBI)
 - gnomAD project
 - COSMIC database (Wellcome Sanger Institute)
+- Rust community for excellent libraries (serde, rayon, clap, etc.)
 
 ---
 
