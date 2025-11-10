@@ -200,7 +200,7 @@ mod tests {
         let entry = ClinVarEntry {
             id: Some("RCV001".to_string()),
             allele_id: None,
-            clinical_significance: Some("Pathogenic".to_string()),
+            clinical_significance: vec!["Pathogenic".to_string()],
             review_status: None,
             phenotypes: vec![],
             last_evaluated: None,

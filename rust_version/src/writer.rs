@@ -74,7 +74,6 @@ pub fn merge_maf_files(input_files: &[String], output_path: &str) -> Result<usiz
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use tempfile::TempDir;
 
     #[test]
