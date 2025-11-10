@@ -13,6 +13,7 @@ Manifest.toml
 
 # OS files
 .DS_Store
+.gitignore
 Thumbs.db
 *.hard-filtered.vcf.annotated.json.gz
 # Temporary files
