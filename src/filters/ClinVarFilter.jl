@@ -148,26 +148,26 @@ function get_review_status_priority(status::String)::Int
 end
 
 """
-    is_cancer_related(diseases::Vector{String}) -> Bool
+    is_cancer_related(phenotypes::Vector{String}) -> Bool
 
-Determine if disease list contains cancer-related diseases
+Determine if phenotype list contains cancer-related conditions
 
 # Cancer keywords
 - cancer, carcinoma, tumor, tumour, malignant, neoplasm
 - lymphoma, leukemia, leukaemia, sarcoma, melanoma
 - glioma, blastoma, myeloma
 """
-function is_cancer_related(diseases::Vector{String})::Bool
+function is_cancer_related(phenotypes::Vector{String})::Bool
     cancer_keywords = [
         "cancer", "carcinoma", "tumor", "tumour", "malignant", "neoplasm",
         "lymphoma", "leukemia", "leukaemia", "sarcoma", "melanoma",
         "glioma", "blastoma", "myeloma", "adenocarcinoma"
     ]
 
-    for disease in diseases
-        disease_lower = lowercase(disease)
+    for phenotype in phenotypes
+        phenotype_lower = lowercase(phenotype)
         for keyword in cancer_keywords
-            if contains(disease_lower, keyword)
+            if contains(phenotype_lower, keyword)
                 return true
             end
         end
@@ -205,8 +205,8 @@ function resolve_conflicting_entries(entries::Vector{ClinVarEntry})::ClinVarEntr
         end
 
         # Then compare by cancer-related (cancer-related comes first)
-        ca = is_cancer_related(a.diseases)
-        cb = is_cancer_related(b.diseases)
+        ca = is_cancer_related(a.phenotypes)
+        cb = is_cancer_related(b.phenotypes)
         if ca != cb
             return ca > cb
         end
@@ -257,7 +257,7 @@ function build_assessment_reason(entry::ClinVarEntry, total_entries::Int)::Strin
     end
 
     # Cancer-related
-    if is_cancer_related(entry.diseases)
+    if is_cancer_related(entry.phenotypes)
         push!(parts, "Cancer-related disease")
     end
 

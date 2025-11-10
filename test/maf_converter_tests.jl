@@ -119,7 +119,7 @@ using JSON2MAF
         clinvar_entry = ClinVarEntry(
             "RCV000012345",
             "12345",
-            "Pathogenic",
+            ["Pathogenic"],
             "reviewed by expert panel",
             ["Li-Fraumeni syndrome"],
             "2024-01-01"
@@ -271,7 +271,7 @@ using JSON2MAF
     @testset "Multiple Disease Name Handling" begin
         clinvar_entry = ClinVarEntry(
             "RCV12345", "12345",
-            "Pathogenic",
+            ["Pathogenic"],
             "criteria provided, multiple submitters, no conflicts",
             ["Disease A", "Disease B", "Disease C"],
             "2024-01-01"

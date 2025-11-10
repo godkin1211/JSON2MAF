@@ -67,7 +67,7 @@ struct ClinVarEntry
     allele_id::Union{String, Nothing}
     clinical_significance::Vector{String}         # Array of significance terms
     review_status::Union{String, Nothing}
-    diseases::Vector{String}
+    phenotypes::Vector{String}                    # Phenotypes/diseases (field name is "phenotypes" in JSON)
     last_evaluated::Union{String, Nothing}
 end
 

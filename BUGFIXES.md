@@ -7,6 +7,7 @@ This document summarizes the critical bugs that were discovered and fixed to ens
 | Bug | Component | Impact | Status |
 |-----|-----------|--------|--------|
 | ClinVar significance field parsing | Julia | 0 ClinVar variants detected (should be 4) | ✅ FIXED |
+| **ClinVar phenotypes field name** | **Julia** | **Wrong field name used, broken cancer detection** | ✅ **FIXED** |
 | DANN score parsing | Rust | 122 fewer variants detected (88 vs 210) | ✅ FIXED |
 | Hugo_Symbol showing "Ensembl" | Rust | Wrong gene names in MAF output | ✅ FIXED |
 | Empty row in MAF output | Rust | Invalid MAF format | ✅ FIXED |
@@ -46,6 +47,51 @@ significance = haskey(cv, :significance) ? collect(String, cv.significance) : St
 # Usage (join array):
 sig_lower = lowercase(join(entry.clinical_significance, ", "))
 ```
+
+---
+
+### 2. ClinVar Phenotypes Field Name (CRITICAL)
+
+**Problem:**
+- Julia was using wrong field name `diseases` instead of `phenotypes`
+- Caused Julia to NEVER detect cancer-related conditions
+- Broke ClinVar entry prioritization when resolving conflicts
+- Made Julia and Rust select different ClinVar entries
+
+**Root Cause:**
+- JSON has `"phenotypes": ["Breast cancer"]` field
+- Julia was trying to parse non-existent `"diseases"` field
+- Always got empty array, breaking cancer detection logic
+
+**Files Fixed:**
+- `src/utils/DataStructures.jl`: Changed field name from `diseases` to `phenotypes`
+- `src/parser/NirvanaParser.jl`: Parse `:phenotypes` instead of `:diseases`
+- `src/filters/ClinVarFilter.jl`: Updated function parameters and usages
+- `src/converters/MAFConverter.jl`: Updated MAF output field reference
+- `test/*.jl`: Updated all test files to use correct field name
+
+**Fix Details:**
+```julia
+# Before (WRONG):
+struct ClinVarEntry
+    diseases::Vector{String}  # Field doesn't exist in JSON!
+end
+diseases = haskey(cv, :diseases) ? collect(String, cv.diseases) : String[]
+
+# After (CORRECT):
+struct ClinVarEntry
+    phenotypes::Vector{String}  # Correct JSON field name
+end
+phenotypes = haskey(cv, :phenotypes) ? collect(String, cv.phenotypes) : String[]
+
+# Usage:
+is_cancer_related(entry.phenotypes)
+```
+
+**Impact:**
+- Before: Cancer-related detection NEVER worked (always empty array)
+- After: Properly detects cancer-related conditions for ClinVar prioritization
+- This explains why Julia and Rust were selecting different ClinVar variants
 
 ---
 

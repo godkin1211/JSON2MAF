@@ -83,15 +83,15 @@ end
         entry = ClinVarEntry(
             "RCV000123456",
             "12345",
-            "Pathogenic",
+            ["Pathogenic"],  # Array of strings
             "criteria provided, multiple submitters, no conflicts",
             ["Hereditary cancer-predisposing syndrome"],
             "2021-10-12"
         )
 
         @test entry.id == "RCV000123456"
-        @test entry.clinical_significance == "Pathogenic"
-        @test length(entry.diseases) == 1
+        @test entry.clinical_significance == ["Pathogenic"]
+        @test length(entry.phenotypes) == 1
     end
 
     @testset "TranscriptAnnotation" begin
