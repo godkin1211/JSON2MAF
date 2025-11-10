@@ -14,7 +14,7 @@ Manifest.toml
 # OS files
 .DS_Store
 Thumbs.db
-.hard-filtered.vcf.annotated.json.gz
+*.hard-filtered.vcf.annotated.json.gz
 # Temporary files
 *.tmp
 *.log

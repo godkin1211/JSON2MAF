@@ -538,18 +538,25 @@ function check_prefilter_with_stats(pos_json, config::FilterConfig)::PrefilterRe
     end
 
     # 2. Check population frequency
+    # Priority: gnomAD-exome > 1000 Genomes
+    # If gnomAD-exome exists and passes, skip 1000 Genomes check
     if haskey(pos_json, :variants) && !isempty(pos_json.variants)
         variant = pos_json.variants[1]
 
-        # Check gnomad-exome EAS AF
+        # Check gnomad-exome EAS AF (higher priority)
         if haskey(variant, Symbol("gnomad-exome"))
             gne = variant[Symbol("gnomad-exome")]
-            if haskey(gne, :easAf) && gne.easAf > config.max_eas_af
-                return PrefilterResult(false, :failed_af)
+            if haskey(gne, :easAf)
+                # If gnomAD-exome exists, use it exclusively
+                if gne.easAf > config.max_eas_af
+                    return PrefilterResult(false, :failed_af)
+                end
+                # gnomAD-exome passes, return PASS (don't check oneKg)
+                return PrefilterResult(true, nothing)
             end
         end
 
-        # Check 1000 Genomes EAS AF
+        # Only check 1000 Genomes if gnomAD-exome doesn't exist
         if haskey(variant, :oneKg)
             okg = variant.oneKg
             if haskey(okg, :easAf) && okg.easAf > config.max_eas_af
