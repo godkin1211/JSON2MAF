@@ -107,8 +107,7 @@ pub struct ClinVarEntry {
 pub struct TranscriptAnnotation {
     #[serde(rename = "transcript")]
     pub id: Option<String>,
-    #[serde(rename = "source")]
-    pub gene_symbol: Option<String>,
+    pub source: Option<String>,
     pub hgnc: Option<String>,
     #[serde(default)]
     pub consequence: Vec<String>,
@@ -119,6 +118,8 @@ pub struct TranscriptAnnotation {
     pub hgvsc: Option<String>,
     pub hgvsp: Option<String>,
     #[serde(rename = "isCanonical")]
+    pub is_canonical: Option<bool>,
+    #[serde(rename = "isManeSelect")]
     pub is_mane_select: Option<bool>,
 }
 

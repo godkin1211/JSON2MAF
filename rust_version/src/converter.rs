@@ -4,10 +4,10 @@ pub fn variant_to_maf(variant: &VariantPosition, decision: &FilterDecision) -> M
     // Select canonical transcript
     let transcript = select_canonical_transcript(&variant.transcripts);
 
-    // Extract gene symbol
+    // Extract gene symbol (use hgnc field which contains the gene symbol)
     let hugo_symbol = transcript
         .as_ref()
-        .and_then(|t| t.gene_symbol.as_deref())
+        .and_then(|t| t.hgnc.as_deref())
         .unwrap_or("")
         .to_string();
 

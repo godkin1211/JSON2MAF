@@ -14,44 +14,13 @@ impl MAFWriter {
         let file = File::create(output_path)
             .with_context(|| format!("Failed to create output file: {}", output_path))?;
 
-        let mut writer = csv::WriterBuilder::new()
+        // Create writer with headers enabled
+        // The csv crate will automatically write headers from the serde field names
+        // on the first call to serialize()
+        let writer = csv::WriterBuilder::new()
             .delimiter(b'\t')
+            .has_headers(true)
             .from_writer(file);
-
-        // Write header
-        writer
-            .serialize(MAFRecord {
-                hugo_symbol: String::new(),
-                chromosome: String::new(),
-                start_position: 0,
-                end_position: 0,
-                strand: String::new(),
-                variant_classification: String::new(),
-                variant_type: String::new(),
-                reference_allele: String::new(),
-                tumor_seq_allele1: String::new(),
-                tumor_seq_allele2: String::new(),
-                tumor_sample_barcode: String::new(),
-                hgvsc: String::new(),
-                hgvsp: String::new(),
-                hgvsp_short: String::new(),
-                transcript_id: String::new(),
-                dbsnp_rs: String::new(),
-                dbsnp_val_status: String::new(),
-                cosmic_id: String::new(),
-                clinvar_id: String::new(),
-                clinvar_review_status: String::new(),
-                clinvar_significance: String::new(),
-                clinvar_disease: String::new(),
-                primate_ai_score: String::new(),
-                dann_score: String::new(),
-                revel_score: String::new(),
-                gnomad_af: String::new(),
-                gnomad_eas_af: String::new(),
-                depth: String::new(),
-                vaf: String::new(),
-            })
-            .context("Failed to write MAF header")?;
 
         Ok(Self {
             writer,
