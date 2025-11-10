@@ -57,11 +57,7 @@ pub fn variant_to_maf(variant: &VariantPosition, decision: &FilterDecision) -> M
             (
                 entry.id.as_deref().unwrap_or("").to_string(),
                 entry.review_status.as_deref().unwrap_or("").to_string(),
-                entry
-                    .clinical_significance
-                    .as_deref()
-                    .unwrap_or("")
-                    .to_string(),
+                entry.clinical_significance.join(", "),
                 entry.phenotypes.join("; "),
             )
         } else {

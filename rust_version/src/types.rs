@@ -93,8 +93,8 @@ pub struct ClinVarEntry {
     pub id: Option<String>,
     #[serde(rename = "variantId")]
     pub allele_id: Option<String>,
-    #[serde(rename = "significance")]
-    pub clinical_significance: Option<String>,
+    #[serde(rename = "significance", default)]
+    pub clinical_significance: Vec<String>,
     #[serde(rename = "reviewStatus")]
     pub review_status: Option<String>,
     #[serde(default)]
@@ -157,6 +157,33 @@ pub struct Sample {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PrimateAIEntry {
+    pub hgnc: Option<String>,
+    pub score_percentile: Option<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrimateAI3DEntry {
+    pub score: Option<f64>,
+    pub score_percentile: Option<f64>,
+    pub classification: Option<String>,
+    pub ensembl_transcript_id: Option<String>,
+    pub ref_seq_transcript_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RevelScore {
+    pub score: Option<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DannScore {
+    pub score: Option<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Variant {
     pub variant_type: String,
     #[serde(default)]
@@ -167,14 +194,14 @@ pub struct Variant {
     pub cosmic: Vec<CosmicEntry>,
     #[serde(default)]
     pub dbsnp: Vec<String>,
-    #[serde(rename = "primateAI-3D")]
-    pub primate_ai_3d: Option<f64>,
-    #[serde(rename = "primateAI")]
-    pub primate_ai: Option<f64>,
-    #[serde(rename = "dannScore")]
-    pub dann_score: Option<f64>,
+    #[serde(rename = "primateAI-3D", default)]
+    pub primate_ai_3d: Vec<PrimateAI3DEntry>,
+    #[serde(rename = "primateAI", default)]
+    pub primate_ai: Vec<PrimateAIEntry>,
+    #[serde(rename = "dann")]
+    pub dann_score: Option<DannScore>,
     #[serde(rename = "revel")]
-    pub revel_score: Option<f64>,
+    pub revel_score: Option<RevelScore>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

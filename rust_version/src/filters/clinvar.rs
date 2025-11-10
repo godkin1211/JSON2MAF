@@ -35,9 +35,8 @@ pub fn assess_clinvar_pathogenicity(entries: &[ClinVarEntry]) -> ClinVarAssessme
     // Determine pathogenicity level
     let sig_lower = selected
         .clinical_significance
-        .as_ref()
-        .map(|s| s.to_lowercase())
-        .unwrap_or_default();
+        .join(", ")
+        .to_lowercase();
 
     // Check if contains standalone "Pathogenic" (not just "Likely pathogenic")
     let parts: Vec<&str> = sig_lower.split(&['/', ',', ';'][..]).collect();
@@ -67,13 +66,10 @@ pub fn assess_clinvar_pathogenicity(entries: &[ClinVarEntry]) -> ClinVarAssessme
 }
 
 fn is_pathogenic_entry(entry: &ClinVarEntry) -> bool {
-    if let Some(sig) = &entry.clinical_significance {
-        let sig_lower = sig.to_lowercase();
-        return sig_lower.contains("pathogenic")
-            && !sig_lower.contains("benign")
-            && !sig_lower.contains("uncertain");
-    }
-    false
+    let sig_lower = entry.clinical_significance.join(", ").to_lowercase();
+    sig_lower.contains("pathogenic")
+        && !sig_lower.contains("benign")
+        && !sig_lower.contains("uncertain")
 }
 
 pub fn get_review_status_priority(status: &str) -> i32 {
@@ -173,8 +169,8 @@ fn build_assessment_reason(entry: &ClinVarEntry, total_entries: usize) -> String
     let mut parts = Vec::new();
 
     // ClinVar classification
-    if let Some(sig) = &entry.clinical_significance {
-        parts.push(format!("ClinVar: {}", sig));
+    if !entry.clinical_significance.is_empty() {
+        parts.push(format!("ClinVar: {}", entry.clinical_significance.join(", ")));
     }
 
     // Review status

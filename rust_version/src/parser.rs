@@ -1,47 +1,61 @@
 use crate::types::*;
 use anyhow::{Context, Result};
-use flate2::read::GzDecoder;
+use flate2::read::MultiGzDecoder;
 use serde_json::Value;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufReader, Write};
 
 pub fn parse_nirvana_json(file_path: &str) -> Result<(NirvanaHeader, Vec<VariantPosition>)> {
+    // First, decompress the file to a temporary location
+    let temp_json_path = "/tmp/nirvana_decompressed.json";
+
+    log::info!("Decompressing {} to temporary file...", file_path);
     let file = File::open(file_path)
         .with_context(|| format!("Failed to open input file: {}", file_path))?;
 
-    let decoder = GzDecoder::new(file);
-    let reader = BufReader::new(decoder);
+    let reader = BufReader::new(file);
+    let mut decoder = MultiGzDecoder::new(reader);
+    let mut temp_file = File::create(temp_json_path)
+        .context("Failed to create temporary decompressed file")?;
 
-    let mut lines = reader.lines();
+    let bytes_written = std::io::copy(&mut decoder, &mut temp_file)
+        .context("Failed to decompress file")?;
 
-    // Parse header from first line
-    let header_line = lines
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("Empty JSON file"))?
-        .context("Failed to read header line")?;
+    temp_file.flush().context("Failed to flush temp file")?;
+    drop(temp_file);
 
-    let header_json: Value = serde_json::from_str(&header_line)
-        .context("Failed to parse header JSON")?;
+    log::info!("Decompressed {} bytes", bytes_written);
 
-    let header: NirvanaHeader = serde_json::from_value(header_json)
-        .context("Failed to parse header structure")?;
+    log::info!("Decompression complete. Parsing JSON...");
 
-    // Parse positions from subsequent lines
+    // Now parse the decompressed JSON file
+    let json_file = File::open(temp_json_path)
+        .context("Failed to open temporary JSON file")?;
+    let json_reader = BufReader::with_capacity(16 * 1024 * 1024, json_file); // 16MB buffer
+
+    // Parse JSON from the decompressed file
+    let json: Value = serde_json::from_reader(json_reader)
+        .context("Failed to parse JSON from decompressed file")?;
+
+    // Parse header
+    let header: NirvanaHeader = serde_json::from_value(
+        json.get("header")
+            .ok_or_else(|| anyhow::anyhow!("No header found in JSON"))?
+            .clone(),
+    )
+    .context("Failed to parse header")?;
+
+    // Parse positions
+    let positions_json = json
+        .get("positions")
+        .ok_or_else(|| anyhow::anyhow!("No positions found in JSON"))?
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("Positions is not an array"))?;
+
     let mut variant_positions = Vec::new();
 
-    for (line_num, line_result) in lines.enumerate() {
-        let line = line_result
-            .with_context(|| format!("Failed to read line {}", line_num + 2))?;
-
-        // Skip empty lines
-        if line.trim().is_empty() {
-            continue;
-        }
-
-        let pos_json: Value = serde_json::from_str(&line)
-            .with_context(|| format!("Failed to parse JSON at line {}", line_num + 2))?;
-
-        if let Some(variant_pos) = parse_position(&pos_json)? {
+    for pos_json in positions_json {
+        if let Some(variant_pos) = parse_position(pos_json)? {
             variant_positions.push(variant_pos);
         }
     }
@@ -51,7 +65,12 @@ pub fn parse_nirvana_json(file_path: &str) -> Result<(NirvanaHeader, Vec<Variant
 
 fn parse_position(pos_json: &Value) -> Result<Option<VariantPosition>> {
     let position: Position = serde_json::from_value(pos_json.clone())
-        .context("Failed to parse position")?;
+        .with_context(|| {
+            format!(
+                "Failed to parse position. JSON preview: {}",
+                serde_json::to_string_pretty(&pos_json).unwrap_or_else(|_| "unable to serialize".to_string()).chars().take(500).collect::<String>()
+            )
+        })?;
 
     // Check if there are variants
     if position.variants.is_empty() {
@@ -84,6 +103,27 @@ fn parse_position(pos_json: &Value) -> Result<Option<VariantPosition>> {
     // Extract population frequencies from the variant
     let population_frequencies = extract_population_frequencies(&pos_json);
 
+    // Extract predictive scores from complex structures
+    let primate_ai_3d = variant
+        .primate_ai_3d
+        .first()
+        .and_then(|entry| entry.score);
+
+    let primate_ai = variant
+        .primate_ai
+        .first()
+        .and_then(|entry| entry.score_percentile);
+
+    let dann_score = variant
+        .dann_score
+        .as_ref()
+        .and_then(|ds| ds.score);
+
+    let revel_score = variant
+        .revel_score
+        .as_ref()
+        .and_then(|rs| rs.score);
+
     let variant_pos = VariantPosition {
         chromosome: position.chromosome,
         start: position.position,
@@ -98,10 +138,10 @@ fn parse_position(pos_json: &Value) -> Result<Option<VariantPosition>> {
         clinvar: variant.clinvar.clone(),
         cosmic: variant.cosmic.clone(),
         population_frequencies,
-        primate_ai_3d: variant.primate_ai_3d,
-        primate_ai: variant.primate_ai,
-        dann_score: variant.dann_score,
-        revel_score: variant.revel_score,
+        primate_ai_3d,
+        primate_ai,
+        dann_score,
+        revel_score,
         dbsnp_ids: variant.dbsnp.clone(),
     };
 
@@ -109,20 +149,55 @@ fn parse_position(pos_json: &Value) -> Result<Option<VariantPosition>> {
 }
 
 fn extract_population_frequencies(pos_json: &Value) -> Vec<PopulationFrequency> {
-    // Try to get population frequencies from the variants array
-    if let Some(variants) = pos_json.get("variants").and_then(|v| v.as_array()) {
-        if let Some(variant) = variants.first() {
-            if let Some(pop_freqs) = variant.get("populationFrequencies").and_then(|p| p.as_array()) {
-                return pop_freqs
-                    .iter()
-                    .filter_map(|pf| {
-                        serde_json::from_value::<PopulationFrequency>(pf.clone()).ok()
-                    })
-                    .collect();
-            }
-        }
+    let mut result = Vec::new();
+
+    // Get first variant from the variants array
+    let variant = match pos_json
+        .get("variants")
+        .and_then(|v| v.as_array())
+        .and_then(|arr| arr.first())
+    {
+        Some(v) => v,
+        None => return result,
+    };
+
+    // Extract gnomad
+    if let Some(gnomad) = variant.get("gnomad") {
+        result.push(PopulationFrequency {
+            source: "gnomad".to_string(),
+            all_af: gnomad.get("allAf").and_then(|v| v.as_f64()),
+            eas_af: gnomad.get("easAf").and_then(|v| v.as_f64()),
+            afr_af: gnomad.get("afrAf").and_then(|v| v.as_f64()),
+            amr_af: gnomad.get("amrAf").and_then(|v| v.as_f64()),
+            eur_af: None,
+        });
     }
-    Vec::new()
+
+    // Extract gnomad-exome
+    if let Some(gnomad_exome) = variant.get("gnomad-exome") {
+        result.push(PopulationFrequency {
+            source: "gnomad-exome".to_string(),
+            all_af: gnomad_exome.get("allAf").and_then(|v| v.as_f64()),
+            eas_af: gnomad_exome.get("easAf").and_then(|v| v.as_f64()),
+            afr_af: gnomad_exome.get("afrAf").and_then(|v| v.as_f64()),
+            amr_af: gnomad_exome.get("amrAf").and_then(|v| v.as_f64()),
+            eur_af: None,
+        });
+    }
+
+    // Extract oneKg (1000 Genomes)
+    if let Some(onekg) = variant.get("oneKg") {
+        result.push(PopulationFrequency {
+            source: "oneKg".to_string(),
+            all_af: onekg.get("allAf").and_then(|v| v.as_f64()),
+            eas_af: onekg.get("easAf").and_then(|v| v.as_f64()),
+            afr_af: onekg.get("afrAf").and_then(|v| v.as_f64()),
+            amr_af: onekg.get("amrAf").and_then(|v| v.as_f64()),
+            eur_af: onekg.get("eurAf").and_then(|v| v.as_f64()),
+        });
+    }
+
+    result
 }
 
 pub fn parse_nirvana_streaming<F>(
