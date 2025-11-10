@@ -14,12 +14,13 @@ Manifest.toml
 # OS files
 .DS_Store
 Thumbs.db
-*.json.gz
+.hard-filtered.vcf.annotated.json.gz
 # Temporary files
 *.tmp
 *.log
 
 # Test outputs
 *.maf
-*.maf
-*stats.txt
+*.txt
+BUGFIXES.md
+INCONSISTENCY_ANALYSIS.md
