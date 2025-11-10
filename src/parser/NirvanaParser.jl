@@ -145,19 +145,20 @@ function parse_position_field(val)::Union{Int, Nothing}
     elseif val isa Integer
         return val
     elseif val isa String
-        parsed_val = nothing
-        # If contains '/', take the first number
+        # Handle complex position formats like "1535-1539/4210"
+        # First extract the part before "/" if present
+        working_val = val
         if contains(val, "/")
-            first_part = split(val, "/")[1]
-            parsed_val = tryparse(Int, first_part)
-        elseif contains(val, "-")
-            # If is a range (e.g., "100-105"), take the first number
-            first_part = split(val, "-")[1]
-            parsed_val = tryparse(Int, first_part)
-        else
-            # Directly try to parse
-            parsed_val = tryparse(Int, val)
+            working_val = split(val, "/")[1]
         end
+
+        # Then extract the first number if it's a range with "-"
+        if contains(working_val, "-")
+            working_val = split(working_val, "-")[1]
+        end
+
+        # Finally try to parse the cleaned value
+        parsed_val = tryparse(Int, working_val)
 
         if parsed_val === nothing
             @warn "Could not parse position field: $(val)"
