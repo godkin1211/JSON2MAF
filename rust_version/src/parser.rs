@@ -3,40 +3,45 @@ use anyhow::{Context, Result};
 use flate2::read::GzDecoder;
 use serde_json::Value;
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufRead, BufReader};
 
 pub fn parse_nirvana_json(file_path: &str) -> Result<(NirvanaHeader, Vec<VariantPosition>)> {
     let file = File::open(file_path)
         .with_context(|| format!("Failed to open input file: {}", file_path))?;
 
-    let reader = BufReader::new(file);
-    let mut decoder = GzDecoder::new(reader);
-    let mut content = String::new();
-    decoder
-        .read_to_string(&mut content)
-        .context("Failed to decompress gzip file")?;
+    let decoder = GzDecoder::new(file);
+    let reader = BufReader::new(decoder);
 
-    let json: Value = serde_json::from_str(&content).context("Failed to parse JSON")?;
+    let mut lines = reader.lines();
 
-    // Parse header
-    let header: NirvanaHeader = serde_json::from_value(
-        json.get("header")
-            .ok_or_else(|| anyhow::anyhow!("No header found in JSON"))?
-            .clone(),
-    )
-    .context("Failed to parse header")?;
+    // Parse header from first line
+    let header_line = lines
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("Empty JSON file"))?
+        .context("Failed to read header line")?;
 
-    // Parse positions
-    let positions_json = json
-        .get("positions")
-        .ok_or_else(|| anyhow::anyhow!("No positions found in JSON"))?
-        .as_array()
-        .ok_or_else(|| anyhow::anyhow!("Positions is not an array"))?;
+    let header_json: Value = serde_json::from_str(&header_line)
+        .context("Failed to parse header JSON")?;
 
+    let header: NirvanaHeader = serde_json::from_value(header_json)
+        .context("Failed to parse header structure")?;
+
+    // Parse positions from subsequent lines
     let mut variant_positions = Vec::new();
 
-    for pos_json in positions_json {
-        if let Some(variant_pos) = parse_position(pos_json)? {
+    for (line_num, line_result) in lines.enumerate() {
+        let line = line_result
+            .with_context(|| format!("Failed to read line {}", line_num + 2))?;
+
+        // Skip empty lines
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        let pos_json: Value = serde_json::from_str(&line)
+            .with_context(|| format!("Failed to parse JSON at line {}", line_num + 2))?;
+
+        if let Some(variant_pos) = parse_position(&pos_json)? {
             variant_positions.push(variant_pos);
         }
     }
@@ -76,9 +81,8 @@ fn parse_position(pos_json: &Value) -> Result<Option<VariantPosition>> {
         .ok_or_else(|| anyhow::anyhow!("No alternate alleles found"))?
         .clone();
 
-    // Parse population frequencies (would need to be extracted from a different part of JSON)
-    // For now, we'll use an empty vec - this should be populated based on actual JSON structure
-    let population_frequencies = Vec::new();
+    // Extract population frequencies from the variant
+    let population_frequencies = extract_population_frequencies(&pos_json);
 
     let variant_pos = VariantPosition {
         chromosome: position.chromosome,
@@ -102,6 +106,23 @@ fn parse_position(pos_json: &Value) -> Result<Option<VariantPosition>> {
     };
 
     Ok(Some(variant_pos))
+}
+
+fn extract_population_frequencies(pos_json: &Value) -> Vec<PopulationFrequency> {
+    // Try to get population frequencies from the variants array
+    if let Some(variants) = pos_json.get("variants").and_then(|v| v.as_array()) {
+        if let Some(variant) = variants.first() {
+            if let Some(pop_freqs) = variant.get("populationFrequencies").and_then(|p| p.as_array()) {
+                return pop_freqs
+                    .iter()
+                    .filter_map(|pf| {
+                        serde_json::from_value::<PopulationFrequency>(pf.clone()).ok()
+                    })
+                    .collect();
+            }
+        }
+    }
+    Vec::new()
 }
 
 pub fn parse_nirvana_streaming<F>(
