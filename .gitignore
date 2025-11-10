@@ -21,4 +21,5 @@ Thumbs.db
 
 # Test outputs
 test*.maf
+rust_*.maf
 *stats.txt
