@@ -114,10 +114,7 @@ fn parse_position(pos_json: &Value) -> Result<Option<VariantPosition>> {
         .first()
         .and_then(|entry| entry.score_percentile);
 
-    let dann_score = variant
-        .dann_score
-        .as_ref()
-        .and_then(|ds| ds.score);
+    let dann_score = variant.dann_score;
 
     let revel_score = variant
         .revel_score

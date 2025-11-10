@@ -179,11 +179,6 @@ pub struct RevelScore {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct DannScore {
-    pub score: Option<f64>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Variant {
     pub variant_type: String,
@@ -199,8 +194,8 @@ pub struct Variant {
     pub primate_ai_3d: Vec<PrimateAI3DEntry>,
     #[serde(rename = "primateAI", default)]
     pub primate_ai: Vec<PrimateAIEntry>,
-    #[serde(rename = "dann")]
-    pub dann_score: Option<DannScore>,
+    #[serde(rename = "dannScore")]
+    pub dann_score: Option<f64>,
     #[serde(rename = "revel")]
     pub revel_score: Option<RevelScore>,
 }
