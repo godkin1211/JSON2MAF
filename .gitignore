@@ -20,5 +20,5 @@ Thumbs.db
 *.log
 
 # Test outputs
-test_output.maf
-rust_stats.txt
+test*.maf
+*stats.txt
