@@ -64,7 +64,8 @@ function assess_clinvar_pathogenicity(entries::Vector{ClinVarEntry})::ClinVarAss
     # Strategy: If any form of "Pathogenic" is mentioned (including "Pathogenic/Likely pathogenic"),
     # consider as Pathogenic (adopting stronger evidence)
     # Only pure "Likely pathogenic" (without standalone "Pathogenic") is considered Likely pathogenic
-    sig_lower = lowercase(selected.clinical_significance)
+    # Join array elements with ", " to create a single string
+    sig_lower = lowercase(join(selected.clinical_significance, ", "))
 
     # Check if contains standalone "Pathogenic" (not just "Likely pathogenic")
     # Split by delimiters and check each part
@@ -98,10 +99,11 @@ end
 Determine if ClinVar entry is pathogenic (Pathogenic or Likely pathogenic)
 """
 function is_pathogenic_entry(entry::ClinVarEntry)::Bool
-    if entry.clinical_significance === nothing
+    if isempty(entry.clinical_significance)
         return false
     end
-    sig_lower = lowercase(entry.clinical_significance)
+    # Join array elements with ", " to create a single string
+    sig_lower = lowercase(join(entry.clinical_significance, ", "))
     return contains(sig_lower, "pathogenic") &&
            !contains(sig_lower, "benign") &&
            !contains(sig_lower, "uncertain")
@@ -243,8 +245,8 @@ Build assessment reason description
 function build_assessment_reason(entry::ClinVarEntry, total_entries::Int)::String
     parts = String[]
 
-    # ClinVar classification
-    push!(parts, "ClinVar: $(entry.clinical_significance)")
+    # ClinVar classification (join array elements)
+    push!(parts, "ClinVar: $(join(entry.clinical_significance, \", \"))")
 
     # Review status
     push!(parts, "Review: $(entry.review_status)")

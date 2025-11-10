@@ -228,10 +228,13 @@ function parse_clinvar_entries(clinvar_json)::Vector{ClinVarEntry}
     for cv in clinvar_json
         diseases = haskey(cv, :diseases) ? collect(String, cv.diseases) : String[]
 
+        # Parse significance as array (field name is "significance", not "clinicalSignificance")
+        significance = haskey(cv, :significance) ? collect(String, cv.significance) : String[]
+
         push!(result, ClinVarEntry(
             get(cv, :id, nothing),
             get(cv, :alleleId, nothing) !== nothing ? string(get(cv, :alleleId, "")) : nothing,
-            get(cv, :clinicalSignificance, nothing),
+            significance,
             get(cv, :reviewStatus, nothing),
             diseases,
             get(cv, :lastEvaluated, nothing)

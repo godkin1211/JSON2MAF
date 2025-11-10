@@ -476,7 +476,8 @@ function extract_clinvar_info(clinvar_entries::Vector{ClinVarEntry})::Tuple{Stri
 
     clinvar_id = entry.id !== nothing ? entry.id : "."
     review_status = entry.review_status !== nothing ? entry.review_status : "."
-    significance = entry.clinical_significance !== nothing ? entry.clinical_significance : "."
+    # Join array elements with ", "
+    significance = !isempty(entry.clinical_significance) ? join(entry.clinical_significance, ", ") : "."
     disease = isempty(entry.diseases) ? "." : join(entry.diseases, ";")
 
     return (clinvar_id, review_status, significance, disease)

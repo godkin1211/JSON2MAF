@@ -65,7 +65,7 @@ ClinVarEntry - ClinVar annotation entry
 struct ClinVarEntry
     id::Union{String, Nothing}                    # RCV ID
     allele_id::Union{String, Nothing}
-    clinical_significance::Union{String, Nothing}
+    clinical_significance::Vector{String}         # Array of significance terms
     review_status::Union{String, Nothing}
     diseases::Vector{String}
     last_evaluated::Union{String, Nothing}
