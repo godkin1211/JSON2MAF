@@ -14,12 +14,12 @@ Manifest.toml
 # OS files
 .DS_Store
 Thumbs.db
-
+*.json.gz
 # Temporary files
 *.tmp
 *.log
 
 # Test outputs
-test*.maf
-rust_*.maf
+*.maf
+*.maf
 *stats.txt
