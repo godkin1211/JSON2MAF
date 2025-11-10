@@ -246,7 +246,7 @@ function build_assessment_reason(entry::ClinVarEntry, total_entries::Int)::Strin
     parts = String[]
 
     # ClinVar classification (join array elements)
-    push!(parts, "ClinVar: $(join(entry.clinical_significance, \", \"))")
+    push!(parts, "ClinVar: $(join(entry.clinical_significance, ", "))")
 
     # Review status
     push!(parts, "Review: $(entry.review_status)")
