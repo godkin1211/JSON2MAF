@@ -1,0 +1,52 @@
+[package]
+name = "json2maf"
+version = "0.4.0"
+edition = "2021"
+authors = ["JSON2MAF Contributors"]
+description = "High-performance Rust tool for filtering pathogenic variants from Illumina Nirvana annotation output"
+license = "Internal"
+
+[[bin]]
+name = "json2maf"
+path = "src/main.rs"
+
+[dependencies]
+# JSON parsing
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Compression
+flate2 = "1.0"
+
+# CSV/MAF output
+csv = "1.3"
+
+# Command-line parsing
+clap = { version = "4.5", features = ["derive"] }
+
+# Progress display
+indicatif = "0.17"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Parallel processing
+rayon = "1.10"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+serde_json_lenient = "0.2.4"
+
+# Temporary files
+tempfile = "3.10"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

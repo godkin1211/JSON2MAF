@@ -1,0 +1,249 @@
+{
+  "header": {
+    "annotator": "Nirvana 3.18.1",
+    "creationTime": "2024-01-15T10:30:00Z",
+    "schemaVersion": 6,
+    "genomeAssembly": "GRCh38",
+    "dataSources": [
+      {
+        "name": "ClinVar",
+        "version": "20240101",
+        "releaseDate": "2024-01-01"
+      },
+      {
+        "name": "gnomAD",
+        "version": "3.1.2",
+        "releaseDate": "2021-10-01"
+      },
+      {
+        "name": "COSMIC",
+        "version": "v98",
+        "releaseDate": "2023-05-01"
+      }
+    ],
+    "samples": ["SAMPLE001"]
+  },
+  "positions": [
+    {
+      "chromosome": "chr17",
+      "position": 7579472,
+      "refAllele": "G",
+      "altAlleles": ["C"],
+      "samples": [
+        {
+          "totalDepth": 150,
+          "variantFrequencies": [0.45]
+        }
+      ],
+      "variants": [
+        {
+          "vid": "17-7579472-G-C",
+          "chromosome": "chr17",
+          "begin": 7579472,
+          "end": 7579472,
+          "refAllele": "G",
+          "altAllele": "C",
+          "variantType": "SNV",
+          "hgvsg": "NC_000017.11:g.7579472G>C",
+          "phylopScore": 0.95,
+          "transcripts": [
+            {
+              "transcript": "ENST00000269305.8",
+              "source": "Ensembl",
+              "bioType": "protein_coding",
+              "geneId": "ENSG00000141510",
+              "hgnc": "TP53",
+              "consequence": ["missense_variant"],
+              "aminoAcids": "P/R",
+              "cdnaPos": 215,
+              "cdsPos": 215,
+              "proteinPos": 72,
+              "hgvsc": "c.215C>G",
+              "hgvsp": "p.Pro72Arg"
+            }
+          ],
+          "clinvar": [
+            {
+              "id": "RCV000012345",
+              "alleleId": "12345",
+              "reviewStatus": "reviewed by expert panel",
+              "significance": "Pathogenic",
+              "phenotypes": ["Li-Fraumeni syndrome"],
+              "lastEvaluated": "2024-01-01"
+            }
+          ],
+          "cosmic": [
+            {
+              "id": "COSM43598",
+              "gene": "TP53",
+              "histology": "carcinoma",
+              "sampleCount": 150
+            }
+          ],
+          "gnomad": {
+            "coverage": "exome",
+            "allAf": 0.02,
+            "easAf": 0.01
+          },
+          "primateAI": [
+            {
+              "scorePercentile": 0.85
+            }
+          ],
+          "dannScore": 0.98,
+          "revel": {
+            "score": 0.80
+          },
+          "dbsnp": ["rs1042522"]
+        }
+      ]
+    },
+    {
+      "chromosome": "chr17",
+      "position": 43045677,
+      "refAllele": "C",
+      "altAlleles": ["T"],
+      "samples": [
+        {
+          "totalDepth": 200,
+          "variantFrequencies": [0.50]
+        }
+      ],
+      "variants": [
+        {
+          "vid": "17-43045677-C-T",
+          "chromosome": "chr17",
+          "begin": 43045677,
+          "end": 43045677,
+          "refAllele": "C",
+          "altAllele": "T",
+          "variantType": "SNV",
+          "transcripts": [
+            {
+              "transcript": "ENST00000357654.8",
+              "hgnc": "BRCA1",
+              "consequence": ["stop_gained"],
+              "cdnaPos": 5266,
+              "cdsPos": 5266,
+              "proteinPos": 1756,
+              "hgvsc": "c.5266C>T",
+              "hgvsp": "p.Arg1756Ter"
+            }
+          ],
+          "clinvar": [
+            {
+              "id": "RCV000065123",
+              "alleleId": "65123",
+              "reviewStatus": "criteria provided, multiple submitters, no conflicts",
+              "significance": "Pathogenic",
+              "phenotypes": ["Breast-ovarian cancer, familial, susceptibility to, 1"],
+              "lastEvaluated": "2023-12-15"
+            }
+          ],
+          "gnomad": {
+            "coverage": "exome",
+            "allAf": 0.0001,
+            "easAf": 0.0
+          },
+          "dannScore": 0.99,
+          "revel": {
+            "score": 0.95
+          }
+        }
+      ]
+    },
+    {
+      "chromosome": "chr7",
+      "position": 55249071,
+      "refAllele": "T",
+      "altAlleles": ["G"],
+      "samples": [
+        {
+          "totalDepth": 180,
+          "variantFrequencies": [0.38]
+        }
+      ],
+      "variants": [
+        {
+          "vid": "7-55249071-T-G",
+          "chromosome": "chr7",
+          "begin": 55249071,
+          "end": 55249071,
+          "refAllele": "T",
+          "altAllele": "G",
+          "variantType": "SNV",
+          "transcripts": [
+            {
+              "transcript": "ENST00000275493.7",
+              "hgnc": "EGFR",
+              "consequence": ["missense_variant"],
+              "aminoAcids": "L/R",
+              "cdnaPos": 2573,
+              "cdsPos": 2573,
+              "proteinPos": 858,
+              "hgvsc": "c.2573T>G",
+              "hgvsp": "p.Leu858Arg"
+            }
+          ],
+          "cosmic": [
+            {
+              "id": "COSM6224",
+              "gene": "EGFR",
+              "histology": "carcinoma",
+              "sampleCount": 500
+            }
+          ],
+          "gnomad": {
+            "coverage": "exome",
+            "allAf": 0.0005,
+            "easAf": 0.0008
+          },
+          "primateAI": [
+            {
+              "scorePercentile": 0.92
+            }
+          ],
+          "dannScore": 0.97,
+          "revel": {
+            "score": 0.88
+          }
+        }
+      ]
+    },
+    {
+      "chromosome": "chr1",
+      "position": 100000,
+      "refAllele": "A",
+      "altAlleles": ["G"],
+      "samples": [
+        {
+          "totalDepth": 10,
+          "variantFrequencies": [0.02]
+        }
+      ],
+      "variants": [
+        {
+          "vid": "1-100000-A-G",
+          "chromosome": "chr1",
+          "begin": 100000,
+          "end": 100000,
+          "refAllele": "A",
+          "altAllele": "G",
+          "variantType": "SNV",
+          "transcripts": [
+            {
+              "transcript": "ENST00000123456",
+              "hgnc": "GENE1",
+              "consequence": ["intron_variant"]
+            }
+          ],
+          "gnomad": {
+            "coverage": "exome",
+            "allAf": 0.5,
+            "easAf": 0.6
+          }
+        }
+      ]
+    }
+  ]
+}
