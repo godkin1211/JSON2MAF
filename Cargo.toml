@@ -1,6 +1,6 @@
 [package]
 name = "json2maf"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 authors = ["JSON2MAF Contributors"]
 description = "High-performance Rust tool for filtering pathogenic variants from Illumina Nirvana annotation output"
