@@ -9,7 +9,7 @@ use std::path::Path;
 #[derive(Parser, Debug)]
 #[command(name = "json2maf")]
 #[command(author = "JSON2MAF Contributors")]
-#[command(version = "0.4.0")]
+#[command(version = "0.5.0")]
 #[command(about = "Pathogenic variant filtering tool for Nirvana JSON", long_about = None)]
 struct Args {
     /// Input Nirvana JSON.gz file path
