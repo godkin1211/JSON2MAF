@@ -1,87 +1,80 @@
-# JSON2MAF
+# JSON2MAF - Rust Version
 
-A high-performance tool for filtering pathogenic variants from Illumina Nirvana annotation output and converting them to MAF (Mutation Annotation Format).
+A high-performance Rust implementation for filtering pathogenic variants from Illumina Nirvana annotation output and converting them to MAF (Mutation Annotation Format).
 
 [![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)](https://www.rust-lang.org/)
+[![Tests](https://img.shields.io/badge/Tests-25%20passing-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/License-Internal-red.svg)]()
-[![Tests](https://img.shields.io/badge/Tests-366%20passing%2C%2016%20skipped-brightgreen.svg)]()
 
 ## Overview
 
-JSON2MAF processes variant annotation data from Illumina Nirvana (gzipped JSON format) and extracts pathogenic/likely pathogenic variants for oncology research. The tool implements intelligent filtering logic combining ClinVar annotations with multiple predictive scoring systems.
-
-**Available Implementations:**
-- **Rust Version**: High-performance implementation with enhanced memory efficiency and type safety
-
-Both implementations provide identical functionality and filtering logic.
+This Rust implementation provides identical functionality to the Julia version with enhanced performance, memory safety, and type guarantees. It processes variant annotation data from Illumina Nirvana (gzipped JSON format) and extracts pathogenic/likely pathogenic variants for oncology research.
 
 ### Key Features
 
-- **Multi-threaded parallel processing** - Utilizes multiple CPU cores for optimal performance
-- **Quality filtering** - Filters variants based on sequencing depth and variant allele frequency (VAF)
-- **Population frequency filtering** - Excludes common variants in East Asian populations
-- **ClinVar prioritization** - Intelligent handling of multiple ClinVar entries with conflict resolution
-- **Predictive score integration** - Combines REVEL, DANN, PrimateAI-3D, and COSMIC scores
-- **Complete statistics tracking** - Provides detailed reports on filtering stages
-- **Configurable thresholds** - All filtering parameters can be customized
+- **Complete MAF annotation** - 37 output fields including transcript details, consequence predictions, and clinical significance
+- **Multi-threaded parallel processing** - Utilizes Rayon for efficient parallel variant processing
+- **Intelligent filtering pipeline** - Multi-stage quality, population frequency, and pathogenicity assessment
+- **ClinVar prioritization** - Conflict resolution with cancer-specific prioritization
+- **Predictive score integration** - REVEL, DANN, PrimateAI-3D with evidence-based thresholds
+- **Comprehensive statistics** - Detailed filtering reports for quality control
+- **Memory safety** - Compile-time guarantees with zero runtime overhead
+- **Configurable thresholds** - All filtering parameters can be customized via CLI
 
-### Filtering Decision Logic
+### Performance Benefits
 
-1. **ClinVar-based filtering** (Primary):
-   - Pathogenic → Include
-   - Likely pathogenic → Include
-   - Prioritizes higher review status and cancer-related annotations
-
-2. **Predictive score-based filtering** (Secondary):
-   - 2+ supporting scores (REVEL, DANN, PrimateAI-3D) → Include as Likely pathogenic
-   - PrimateAI-3D alone → Include (highest priority predictive score)
+- **Zero-copy parsing** - Efficient JSON processing with serde
+- **Parallel processing** - Rayon-based multi-threading with automatic load balancing
+- **Optimized binary** - LTO and aggressive optimizations enabled
+- **Unique temporary files** - Thread-safe with automatic cleanup
+- **Lower memory footprint** - Efficient data structures (~2-4 GB for typical workloads)
 
 ## System Requirements
 
-### Rust Version
 - **Rust**: 1.70 or higher
-- **RAM**: 2-4 GB (varies with input file size and thread count)
-- **CPU**: Multi-core processor recommended for optimal performance
-
-#### Dependencies
-
-All dependencies are managed via Cargo and automatically downloaded during build:
-
-```toml
-serde, serde_json  # JSON parsing
-flate2             # Gzip file handling
-csv                # MAF output
-clap               # Command-line interface
-rayon              # Parallel processing
-indicatif          # Progress display
-anyhow             # Error handling
-```
+- **RAM**: 2-4 GB (scales with input size and thread count)
+- **CPU**: Multi-core processor recommended (4-8 cores optimal)
+- **Disk**: Temporary space for decompression (~2x input file size)
 
 ## Installation
 
-
-### Rust Version
+### Building from Source
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/JSON2MAF.git
-cd JSON2MAF/rust_version
+# Navigate to the Rust version directory
+cd rust_version
 
 # Build in release mode (optimized)
 cargo build --release
 
 # The binary will be available at target/release/json2maf
-
-# Run tests (optional)
-cargo test
 ```
+
+### Running Tests
+
+```bash
+# Run all tests (25 tests)
+cargo test
+
+# Run with output
+cargo test -- --nocapture
+
+# Run specific test
+cargo test test_parse_and_convert_with_new_fields
+```
+
+**Test Coverage**: 25 tests covering:
+- JSON parsing and field extraction
+- Quality filtering logic
+- ClinVar assessment and conflict resolution
+- Predictive score evaluation
+- Decision engine logic
+- MAF conversion and formatting
+- Integration tests with real-world data
 
 ## Usage
 
 ### Quick Start
-
-
-**Rust Version:**
 
 ```bash
 # Basic usage
@@ -89,24 +82,26 @@ cargo test
   -i input.json.gz \
   -o output.maf
 
-# With verbose output and statistics report
+# With statistics and verbose output
 ./target/release/json2maf \
   -i input.json.gz \
   -o output.maf \
   --stats report.txt \
-  --verbose \
+  --verbose
+
+# Specify number of threads
+./target/release/json2maf \
+  -i input.json.gz \
+  -o output.maf \
   -j 6
 ```
 
 ### Complete Example with Custom Parameters
 
-
-**Rust Version:**
-
 ```bash
 ./target/release/json2maf \
-  --input input.json.gz \
-  --output output.maf \
+  --input P.hard-filtered.vcf.annotated.json.gz \
+  --output pathogenic_variants.maf \
   --min-depth 30 \
   --min-vaf 0.03 \
   --max-eas-af 0.01 \
@@ -114,7 +109,7 @@ cargo test
   --min-primate-ai 0.8 \
   --min-dann 0.96 \
   --threads 6 \
-  --stats report.txt \
+  --stats filtering_report.txt \
   --verbose
 ```
 
@@ -122,307 +117,368 @@ cargo test
 
 **Required Arguments**:
 
-- `-i, --input FILE`: Input Nirvana JSON.gz file path
-- `-o, --output FILE`: Output MAF file path
+- `-i, --input <FILE>`: Input Nirvana JSON.gz file path
+- `-o, --output <FILE>`: Output MAF file path
 
 **Quality Filtering Parameters**:
 
-- `--min-depth INT`: Minimum sequencing depth (default: 30)
-- `--min-vaf FLOAT`: Minimum variant allele frequency (default: 0.03)
-- `--max-eas-af FLOAT`: Maximum East Asian allele frequency (default: 0.01)
+- `--min-depth <INT>`: Minimum sequencing depth (default: 30)
+- `--min-vaf <FLOAT>`: Minimum variant allele frequency (default: 0.03)
+- `--max-eas-af <FLOAT>`: Maximum East Asian allele frequency (default: 0.01)
 
 **Predictive Score Thresholds**:
 
-- `--min-revel FLOAT`: REVEL score threshold (default: 0.75)
-- `--min-primate-ai FLOAT`: PrimateAI-3D score threshold (default: 0.8)
-- `--min-dann FLOAT`: DANN score threshold (default: 0.96)
+- `--min-revel <FLOAT>`: REVEL score threshold (default: 0.75)
+- `--min-primate-ai <FLOAT>`: PrimateAI-3D score threshold (default: 0.8)
+- `--min-dann <FLOAT>`: DANN score threshold (default: 0.96)
 
-**Other Options**:
+**Performance Options**:
 
+- `-j, --threads <NUM>`: Number of threads (default: number of CPU cores)
 - `-v, --verbose`: Enable verbose output
 - `-q, --quiet`: Suppress progress bar
-- `--stats FILE`: Save statistics report to file
 - `--keep-temp`: Keep temporary thread files (for debugging)
+
+**Output Options**:
+
+- `--stats <FILE>`: Save detailed statistics report to file
+
+**Other**:
+
 - `-h, --help`: Show help message
 - `--version`: Show version information
 
-### Performance Tuning
+## Filtering Logic
 
-**Rust Version:**
+The tool implements a hierarchical decision engine:
 
-```bash
-# Specify thread count with -j flag (defaults to all CPU cores)
-./target/release/json2maf -i input.json.gz -o output.maf -j 8
-```
+1. **Quality Filtering** → Depth ≥30, VAF ≥0.03, EAS AF ≤0.01
+2. **ClinVar Pathogenic** → Include as "Pathogenic"
+3. **ClinVar Likely Pathogenic** → Include as "Likely pathogenic"
+4. **ClinVar Inconclusive + Predictive Support** → Include as "Likely pathogenic"
+   - PrimateAI-3D alone (threshold 0.8), OR
+   - 2+ scores from {REVEL ≥0.75, DANN ≥0.96, PrimateAI-3D ≥0.8}
+5. **All Other Cases** → Exclude
 
-**Recommended thread counts**:
+### ClinVar Conflict Resolution
 
-- 4 threads: Standard workstations
-- 6-8 threads: High-performance workstations
-- 16+ threads: Server environments
+When multiple ClinVar entries conflict:
+- Prioritize cancer-related phenotypes
+- Higher review status takes precedence
+- Pathogenic > Likely pathogenic > Inconclusive
 
 ## Output Format
 
-### MAF File
+### MAF File (37 columns)
 
-The tool generates a standard MAF (Mutation Annotation Format) file with the following key fields:
+The tool generates a standard MAF file with the following fields:
 
-| Field | Description |
-|-------|-------------|
-| `Hugo_Symbol` | Gene symbol |
-| `Chromosome` | Chromosome name |
-| `Start_Position` | Variant start position |
-| `End_Position` | Variant end position |
-| `Variant_Classification` | Consequence type (e.g., Missense_Mutation) |
-| `Variant_Type` | Variant type (SNP, DNP, INS, DEL) |
-| `Reference_Allele` | Reference allele |
-| `Tumor_Seq_Allele2` | Alternate allele |
-| `dbSNP_RS` | dbSNP ID |
-| `COSMIC_ID` | COSMIC ID |
-| `HGVSc` | HGVS coding notation |
-| `HGVSp_Short` | HGVS protein notation |
-| `Transcript_ID` | Transcript identifier |
-| `ClinVar_Significance` | ClinVar clinical significance |
-| `ClinVar_Review_Status` | ClinVar review status |
-| `ClinVar_Disease` | Associated diseases |
-| `REVEL_Score` | REVEL pathogenicity score |
-| `DANN_Score` | DANN score |
-| `PrimateAI_Score` | PrimateAI-3D score |
-| `COSMIC_Count` | Number of COSMIC samples |
+**Basic Information**:
+- `Hugo_Symbol` - Gene symbol (HGNC)
+- `Chromosome` - Chromosome name
+- `Start_Position` - Variant start position
+- `End_Position` - Variant end position
+- `Strand` - Genomic strand (always "+")
+
+**Variant Classification**:
+- `Variant_Classification` - MAF classification (Missense_Mutation, Nonsense_Mutation, etc.)
+- `Variant_Type` - Type (SNP, INS, DEL, DNP, etc.)
+- `Reference_Allele` - Reference allele
+- `Tumor_Seq_Allele1` - Tumor allele 1 (usually same as reference)
+- `Tumor_Seq_Allele2` - Tumor allele 2 (variant allele)
+
+**Sample Information**:
+- `Tumor_Sample_Barcode` - Sample identifier
+
+**Transcript Annotation**:
+- `HGVSc` - HGVS coding notation (e.g., "c.1799T>A")
+- `HGVSp` - HGVS protein notation (e.g., "p.Val600Glu")
+- `HGVSp_Short` - Short HGVS protein (e.g., "p.V600E")
+- `Transcript_ID` - RefSeq or Ensembl transcript ID
+
+**NEW: Detailed Consequence Annotation**:
+- `Exon` - Exon number and total (e.g., "15/18")
+- `Consequence` - Sequence Ontology terms (comma-separated)
+- `IMPACT` - VEP-style impact level (HIGH, MODERATE, LOW, MODIFIER)
+- `Codons` - Reference/variant codons (e.g., "Gtg/Gag")
+- `Amino_Acids` - Reference/variant amino acids (e.g., "V/E")
+- `cDNA_position` - Position in cDNA (e.g., "1799/2301")
+- `CDS_position` - Position in CDS (e.g., "1799/2301")
+- `Protein_position` - Position in protein (e.g., "600/766")
+
+**Database IDs**:
+- `dbSNP_RS` - dbSNP rs identifier
+- `dbSNP_Val_Status` - Validation status (usually empty)
+- `COSMIC_ID` - COSMIC mutation identifier
+
+**ClinVar Information**:
+- `ClinVar_ID` - ClinVar RCV identifier
+- `ClinVar_Review_Status` - Review status (e.g., "criteria provided, multiple submitters")
+- `ClinVar_Significance` - Clinical significance (Pathogenic, Likely pathogenic, etc.)
+- `ClinVar_Disease` - Associated diseases/phenotypes
+
+**Predictive Scores**:
+- `PrimateAI_Score` - PrimateAI-3D pathogenicity score (0-1)
+- `DANN_Score` - DANN pathogenicity score (0-1)
+- `REVEL_Score` - REVEL pathogenicity score (0-1)
+
+**Population Frequencies**:
+- `gnomAD_AF` - gnomAD overall allele frequency
+- `gnomAD_EAS_AF` - gnomAD East Asian allele frequency
+
+**Sequencing Quality**:
+- `Depth` - Total sequencing depth
+- `VAF` - Variant allele frequency
 
 ### Statistics Report
 
-When using `--stats` or `--verbose`, the tool generates a detailed report:
-
 ```
 ═══════════════════════════════════════════════════════════
-                    Filtering Statistics
+                  Filtering Statistics Report
 ═══════════════════════════════════════════════════════════
 
-Processing Mode:        Multi-threaded parallel processing
-Thread Count:           6
+Processing mode:        Multi-threaded parallel processing
+Number of threads:      2
 
-Quality Filtering:
-  - Passed quality:     1,340
-  - Insufficient depth: 623
-  - Low VAF:            1,193
-  - High population AF: 27,545
+Quality filtering:
+  - Passed quality:     1,574
+  - Insufficient depth: 1,503
+  - VAF too low:        519
+  - Population freq too high: 23,451
 
-Pathogenicity Assessment:
-  - ClinVar Pathogenic:         0
-  - ClinVar Likely pathogenic:  0
-  - Predictive score support:   198
-    * PrimateAI-3D only:        7
-    * 2+ scores support:        191
+Pathogenicity assessment:
+  - ClinVar Pathogenic:         2
+  - ClinVar Likely pathogenic:  2
+  - Predictive scores support:  213
+    * PrimateAI-3D solo support: 7
+    * 2+ scores support:         206
 
-Final Results:
-  - Included variants:  198
-  - Excluded variants:  1,142
+Final results:
+  - Included variants:  217
+  - Excluded variants:  1,357
 
 ═══════════════════════════════════════════════════════════
 ```
-
-## Input Requirements
-
-### Nirvana JSON Format
-
-The input must be a gzipped JSON file produced by Illumina Nirvana annotation pipeline. Required fields include:
-
-- `header`: Metadata and annotation sources
-- `positions`: Per-variant annotations (main processing target)
-  - Basic variant information (chromosome, position, alleles)
-  - `samples`: Sample-level data (depth, VAF)
-  - `transcripts`: Transcript consequences
-  - `clinvar`: ClinVar annotations
-  - `populationFrequencies`: gnomAD, 1000 Genomes data
-  - Predictive scores: `primateAI-3D`, `DANN`, `REVEL`
-
-### Data Quality Considerations
-
-- Variants must pass VCF FILTER field (only "PASS" variants are processed)
-- Missing annotations are handled gracefully
-- Boolean fields in Nirvana JSON only appear when true
-
-## Limitations and Constraints
-
-### Technical Limitations
-
-1. **Memory Usage**:
-   - Proportional to input file size and thread count
-   - Typical usage: 2-4 GB for 30K-50K variants with 6 threads
-   - For very large files (>100MB), monitor RAM usage
-
-2. **Thread Scalability**:
-   - Optimal speedup with 4-8 threads
-   - Diminishing returns beyond 16 threads due to overhead
-   - Parallel efficiency: ~87% with 4-6 threads
-
-3. **Input File Format**:
-   - Only supports Nirvana JSON format
-   - Must be gzipped (`.json.gz` extension)
-   - Cannot process VCF files directly (requires Nirvana annotation first)
-
-### Biological/Clinical Limitations
-
-1. **Pathogenicity Assessment**:
-   - Limited to ClinVar and computational predictions
-   - Does not include functional validation
-   - Cancer-relevance depends on ClinVar disease annotations
-
-2. **Predictive Score Availability**:
-   - Not all variants have predictive scores
-   - Missing scores are treated as non-supporting evidence
-   - Score thresholds based on literature recommendations
-
-3. **Population-specific Filtering**:
-   - Focused on East Asian populations (EAS AF)
-   - Other populations may require parameter adjustments
-   - Missing population frequency data is conservatively allowed
-
-4. **Variant Types**:
-   - Optimized for SNVs and small indels
-   - Large structural variants may not be properly assessed
-   - Copy number variations not supported
-
-### Recommended Use Cases
-
-✅ **Appropriate for**:
-
-- Somatic variant calling from tumor samples
-- Germline variant analysis for cancer predisposition
-- Research cohort variant prioritization
-- Clinical biomarker discovery
-
-❌ **Not recommended for**:
-
-- Direct clinical diagnostic reporting (requires expert review)
-- Pharmacogenomics applications
-- Population genetics studies
-- Real-time clinical decision support
-
-### Important Notes
-
-- This tool is designed for **research purposes in oncology drug development**
-- Results should be reviewed by qualified bioinformaticians and clinicians
-- Filtering parameters may need adjustment based on specific research goals
-- ClinVar annotations are periodically updated; consider re-annotation for critical studies
-
-## Performance Benchmarks
-
-Tested on a workstation with Intel Core i7 (4 cores) and 16 GB RAM:
-
-| File Size | Variants | Threads | Processing Time | Memory | Parallel Efficiency |
-|-----------|----------|---------|-----------------|--------|-------------------|
-| 42 MB | 30,701 | 1 | ~35 min | 1.8 GB | - |
-| 42 MB | 30,701 | 4 | 9.8 min | 2.4 GB | 87% |
-| 42 MB | 30,701 | 6 | 7.5 min | 2.8 GB | 79% |
-
-*Efficiency = (Sequential Time / Parallel Time) / Thread Count × 100%*
 
 ## Project Structure
 
-### Rust Version
 ```
 rust_version/
-Cargo.toml                   # Project configuration
-README.md                    # Rust-specific documentation
-src/
-├── main.rs                  # CLI executable
-├── lib.rs                   # Library exports
-├── types.rs                 # Data structures
-├── parser.rs                # JSON parsing
-├── filters/                 # Filtering modules
-│   ├── quality.rs           # Quality filtering
-│   ├── clinvar.rs           # ClinVar filtering
-│   ├── predictive.rs        # Predictive scores
-│   └── decision.rs          # Decision logic
-├── converter.rs             # MAF conversion
-└── writer.rs                # MAF output
+├── Cargo.toml              # Project configuration and dependencies
+├── README.md               # This file
+├── src/
+│   ├── main.rs             # CLI executable entry point
+│   ├── lib.rs              # Library exports
+│   ├── types.rs            # Core data structures (FilterConfig, VariantPosition, MAFRecord, etc.)
+│   ├── parser.rs           # Nirvana JSON parsing with gzip decompression
+│   ├── filters/
+│   │   ├── mod.rs          # Filter module exports
+│   │   ├── quality.rs      # Quality and population frequency filtering
+│   │   ├── clinvar.rs      # ClinVar assessment and conflict resolution
+│   │   ├── predictive.rs   # Predictive score evaluation (REVEL, DANN, PrimateAI-3D)
+│   │   └── decision.rs     # Hierarchical decision engine
+│   ├── converter.rs        # MAF format conversion
+│   └── writer.rs           # Multi-threaded MAF file writing
+└── tests/
+    └── integration_test.rs # Integration tests for end-to-end validation
 ```
 
-## Testing
+## Development
 
-
-### Rust Version
-
-Run the test suite:
+### Running Tests
 
 ```bash
-cd rust_version
+# Run all tests
 cargo test
+
+# Run with verbose output
+cargo test -- --nocapture
+
+# Run specific test module
+cargo test converter
+
+# Run integration tests only
+cargo test --test integration_test
 ```
 
-### Test Coverage
+### Code Coverage
 
-Both implementations include tests for:
+- **Parser tests**: JSON parsing, field extraction, edge cases
+- **Filter tests**: Quality, ClinVar, predictive scores, decision logic
+- **Converter tests**: Variant classification mapping, HGVS notation, field extraction
+- **Integration tests**: End-to-end processing with real-world data
 
-- Data structure validation
-- JSON parsing accuracy
-- Quality filtering logic
-- ClinVar prioritization
-- Predictive score assessment
-- Decision engine rules
-- MAF format compliance
+### Running with Logging
 
-### Performance Comparison
+```bash
+# Info level
+RUST_LOG=info ./target/release/json2maf -i input.json.gz -o output.maf
 
-- **Rust**: Comparable or better performance with lower memory overhead
+# Debug level
+RUST_LOG=debug ./target/release/json2maf -i input.json.gz -o output.maf
+```
+
+### Building for Maximum Performance
+
+The release profile is optimized for production use:
+
+```toml
+[profile.release]
+opt-level = 3         # Maximum optimization level
+lto = true            # Link-time optimization
+codegen-units = 1     # Better optimization (slower compile)
+strip = true          # Strip debug symbols from binary
+```
+
+Build command:
+```bash
+cargo build --release
+```
+
+### Performance Tuning
+
+**Recommended Thread Counts**:
+- **4 threads**: Standard workstations, small files (<100 MB)
+- **6-8 threads**: High-performance workstations, medium files (100-500 MB)
+- **16+ threads**: Server environments, large files (>500 MB)
+
+**Memory Considerations**:
+- Each thread creates a temporary MAF file
+- Peak memory usage: ~2-4 GB for typical workloads
+- Reduce threads if encountering memory issues
+
+## Differences from Julia Version
+
+| Aspect | Julia | Rust |
+|--------|-------|------|
+| **Dependency Management** | Pkg | Cargo |
+| **Parallel Processing** | `Threads.@threads` | Rayon |
+| **Error Handling** | Exceptions | `Result<T, E>` types |
+| **Type System** | Dynamic with optional typing | Strong static typing |
+| **Memory Safety** | GC-based | Ownership system (compile-time) |
+| **Performance** | Fast JIT compilation | Ahead-of-time compilation |
+| **Binary Size** | Requires Julia runtime | Standalone executable |
+| **Test Framework** | `@testset` macros | Built-in `#[test]` |
 
 ## Troubleshooting
 
 ### Common Issues
 
+**Issue**: Compilation errors
+
+**Solution**:
+```bash
+# Ensure Rust 1.70+ is installed
+rustc --version
+
+# Update Rust if needed
+rustup update stable
+```
+
 **Issue**: Out of memory errors
 
-- **Solution**: Reduce thread count or process smaller batches
+**Solution**:
+```bash
+# Reduce thread count
+./target/release/json2maf -i input.json.gz -o output.maf -j 2
+```
 
-**Issue**: Slow processing with multiple threads
+**Issue**: Slow first-time compilation
 
-- **Rust**: Use `-j` flag to specify thread count
+**Solution**: This is expected. Release builds with LTO take longer but produce optimized binaries. Use `cargo build` (without `--release`) for faster development builds.
 
-**Issue**: No variants in output
+**Issue**: Tests fail due to temporary file conflicts
 
-- **Solution**: Check filtering parameters (may be too stringent)
+**Solution**: Tests now use unique temporary files automatically. If issues persist, run tests sequentially:
+```bash
+cargo test -- --test-threads=1
+```
 
-**Issue**: Missing predictive scores
+**Issue**: "Invalid gzip header" errors
 
-- **Solution**: Ensure Nirvana annotation included all databases
+**Solution**: Ensure input file is properly gzipped:
+```bash
+# Check file type
+file input.json.gz
 
-**Issue**: Rust compilation errors
+# Re-compress if needed
+gunzip input.json.gz
+gzip input.json
+```
 
-- **Solution**: Ensure Rust 1.70+ is installed: `rustc --version`
+## Example Workflow
+
+```bash
+# 1. Build the tool
+cd rust_version
+cargo build --release
+
+# 2. Run on sample data
+./target/release/json2maf \
+  -i ../examples/sample_data/test_mini.json.gz \
+  -o sample_output.maf \
+  --verbose
+
+# 3. Run on real data with statistics
+./target/release/json2maf \
+  -i ../P.hard-filtered.vcf.annotated.json.gz \
+  -o pathogenic_variants.maf \
+  --stats filtering_report.txt \
+  -j 6 \
+  --verbose
+
+# 4. Review statistics
+cat filtering_report.txt
+
+# 5. Examine output
+head -n 5 pathogenic_variants.maf | column -t -s $'\t'
+```
+
+## Future Enhancements
+
+Potential future improvements:
+- [ ] Julia FFI bindings for calling Rust implementation from Julia
+- [ ] Additional predictive scores (CADD, MetaSVM, etc.)
+- [ ] VCF output format support
+- [ ] Streaming JSON parsing for memory-constrained environments
+- [ ] Built-in annotation database updates
 
 ## Contributing
 
-This is an internal research tool. For questions or suggestions, please contact:
+This is an internal research tool. For questions, bug reports, or feature requests, please contact:
 
 - Project bioinformaticians
-- Product managers
+- Development team leads
 
 ## Citation
 
 If you use this tool in your research, please cite:
 
 ```
-JSON2MAF: A high-performance variant filtering tool for oncology research
-[Chi Mei Medical Center]
-Version 0.5.0 (2026)
+JSON2MAF Rust Implementation
+Version 0.4.0
+Internal Oncology Research Tool
 ```
 
 ## License
 
-Internal use only for oncology research and drug development.
+Internal use only for oncology research and pharmaceutical development.
 
 ## Acknowledgments
 
-- Illumina Nirvana annotation pipeline
-- ClinVar database (NCBI)
-- gnomAD project
-- COSMIC database (Wellcome Sanger Institute)
-- Rust community for excellent libraries (serde, rayon, clap, etc.)
+- Original Julia implementation by the JSON2MAF development team
+- Rust community for excellent libraries:
+  - `serde` and `serde_json` for JSON parsing
+  - `rayon` for parallel processing
+  - `clap` for CLI argument parsing
+  - `flate2` for gzip compression
+  - `csv` for MAF output
+  - `anyhow` and `thiserror` for error handling
 
 ---
 
-**Version**: 0.5.0
-**Last Updated**: Feb. 2026
+**Version**: 0.4.0
+**Last Updated**: February 2026
 **Status**: Production-ready
+**Test Coverage**: 25 passing tests
+**Supported Rust**: 1.70+
