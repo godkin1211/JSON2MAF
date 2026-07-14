@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::Parser;
-use json2maf::sv::{parse_sv_nirvana_json, sv_position_to_record, SVWriter};
+use json2maf::sv::{parse_sv_nirvana_streaming, sv_position_to_record, SVType, SVWriter};
 use std::path::Path;
 
 #[derive(Parser, Debug)]
@@ -37,36 +37,42 @@ fn main() -> Result<()> {
         println!("Output: {}", args.output);
     }
 
-    let (_header, sv_positions) =
-        parse_sv_nirvana_json(&args.input).context("Failed to parse SV JSON")?;
+    let mut writer = SVWriter::new(&args.output).context("Failed to create output file")?;
+
+    let mut total = 0usize;
+    let mut del_count = 0usize;
+    let mut ins_count = 0usize;
+    let mut symbolic = 0usize;
+
+    let _header = parse_sv_nirvana_streaming(&args.input, |pos| {
+        total += 1;
+        match pos.sv_type {
+            SVType::Del => del_count += 1,
+            SVType::Ins => ins_count += 1,
+        }
+        if pos.is_symbolic {
+            symbolic += 1;
+        }
+
+        let record = sv_position_to_record(&pos);
+        writer.write_record(&record)
+    })
+    .context("Failed to parse SV JSON")?;
+
+    writer.flush()?;
 
     if args.verbose {
-        let del_count = sv_positions.iter().filter(|p| p.sv_type == json2maf::sv::SVType::Del).count();
-        let ins_count = sv_positions.iter().filter(|p| p.sv_type == json2maf::sv::SVType::Ins).count();
-        let symbolic = sv_positions.iter().filter(|p| p.is_symbolic).count();
         println!(
             "Parsed {} SV positions: {} DEL, {} INS ({} symbolic, {} sequence-resolved)",
-            sv_positions.len(),
+            total,
             del_count,
             ins_count,
             symbolic,
-            sv_positions.len() - symbolic,
+            total - symbolic,
         );
     }
 
-    let mut writer = SVWriter::new(&args.output).context("Failed to create output file")?;
-
-    for pos in &sv_positions {
-        let record = sv_position_to_record(pos);
-        writer.write_record(&record)?;
-    }
-    writer.flush()?;
-
-    println!(
-        "Written {} SV records to {}",
-        sv_positions.len(),
-        args.output
-    );
+    println!("Written {} SV records to {}", total, args.output);
 
     Ok(())
 }

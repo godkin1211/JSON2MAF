@@ -130,6 +130,20 @@ pub struct TranscriptAnnotation {
     pub is_mane_select: Option<bool>,
 }
 
+/// Raw population-frequency sub-object shared by the `gnomad`, `gnomad-exome`
+/// and `oneKg` fields on a variant. Kept separate from `PopulationFrequency`
+/// (which additionally tags a `source`) so it can be deserialized directly by
+/// serde without going through a `serde_json::Value` DOM.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrequencyEntry {
+    pub all_af: Option<f64>,
+    pub eas_af: Option<f64>,
+    pub afr_af: Option<f64>,
+    pub amr_af: Option<f64>,
+    pub eur_af: Option<f64>,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PopulationFrequency {
@@ -205,6 +219,11 @@ pub struct Variant {
     pub dann_score: Option<f64>,
     #[serde(rename = "revel")]
     pub revel_score: Option<RevelScore>,
+    pub gnomad: Option<FrequencyEntry>,
+    #[serde(rename = "gnomad-exome")]
+    pub gnomad_exome: Option<FrequencyEntry>,
+    #[serde(rename = "oneKg")]
+    pub one_kg: Option<FrequencyEntry>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -254,12 +273,6 @@ pub struct VariantPosition {
 
     // dbSNP
     pub dbsnp_ids: Vec<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct NirvanaData {
-    pub header: NirvanaHeader,
-    pub positions: Vec<Position>,
 }
 
 // ============================================================================

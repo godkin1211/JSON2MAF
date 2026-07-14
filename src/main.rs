@@ -67,6 +67,12 @@ struct Args {
     /// Exclude benign and likely benign variants
     #[arg(long)]
     exclude_benign: bool,
+
+    /// Number of variants held in memory per parallel filtering batch.
+    /// Lower this on machines with limited RAM to reduce peak memory usage
+    /// at the cost of somewhat less parallelism.
+    #[arg(long, default_value_t = 20_000)]
+    batch_size: usize,
 }
 
 fn main() -> Result<()> {
@@ -121,6 +127,7 @@ fn main() -> Result<()> {
         args.verbose,
         args.quiet,
         args.keep_temp,
+        args.batch_size.max(1),
     )?;
 
     // Print statistics
@@ -156,41 +163,18 @@ fn display_config(config: &FilterConfig) {
     println!("============================================================");
 }
 
-fn process_nirvana_json(
-    input_path: &str,
-    output_path: &str,
+/// Filters and converts one batch of already-parsed variants in parallel,
+/// writing MAF rows immediately and merging statistics, then clears the
+/// batch. Keeping this at batch granularity (instead of collecting every
+/// variant in the file first) is what bounds peak memory to O(batch_size)
+/// rather than O(file size) — the whole point of the streaming pipeline.
+fn process_batch(
+    batch: &mut Vec<VariantPosition>,
     config: &FilterConfig,
-    verbose: bool,
-    quiet: bool,
-    _keep_temp: bool,
-) -> Result<FilterStats> {
-    if verbose {
-        println!("\n[1/3] Parsing Nirvana JSON...");
-    }
-
-    // Parse JSON
-    let (_header, variants) = parse_nirvana_json(input_path)?;
-
-    if verbose {
-        println!("  ✓ Parsed {} variants", variants.len());
-        println!("\n[2/3] Filtering variants in parallel...");
-    }
-
-    let progress = if !quiet {
-        let pb = ProgressBar::new(variants.len() as u64);
-        pb.set_style(
-            ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})")
-                .unwrap()
-                .progress_chars("#>-"),
-        );
-        Some(pb)
-    } else {
-        None
-    };
-
-    // Process variants in parallel
-    let results: Vec<_> = variants
+    writer: &mut MAFWriter,
+    total_stats: &mut FilterStats,
+) -> Result<()> {
+    let results: Vec<(Option<MAFRecord>, FilterStats)> = batch
         .par_iter()
         .map(|variant| {
             let mut thread_stats = FilterStats::default();
@@ -252,13 +236,7 @@ fn process_nirvana_json(
                     }
                 }
 
-                // Convert to MAF record
                 let maf_record = variant_to_maf(variant, &decision);
-
-                if let Some(pb) = &progress {
-                    pb.inc(1);
-                }
-
                 (Some(maf_record), thread_stats)
             } else {
                 thread_stats.excluded += 1;
@@ -268,44 +246,91 @@ fn process_nirvana_json(
                     thread_stats.excluded_benign += 1;
                 }
 
-                if let Some(pb) = &progress {
-                    pb.inc(1);
-                }
-
                 (None, thread_stats)
             }
         })
         .collect();
 
-    if let Some(pb) = progress {
-        pb.finish_with_message("Filtering complete");
-    }
-
-    // Merge results
-    let mut total_stats = FilterStats::default();
-    let mut maf_records = Vec::new();
-
     for (record, stats) in results {
         total_stats.merge(&stats);
         if let Some(rec) = record {
-            maf_records.push(rec);
+            writer.write_record(&rec)?;
         }
     }
 
+    batch.clear();
+    Ok(())
+}
+
+fn process_nirvana_json(
+    input_path: &str,
+    output_path: &str,
+    config: &FilterConfig,
+    verbose: bool,
+    quiet: bool,
+    _keep_temp: bool,
+    batch_size: usize,
+) -> Result<FilterStats> {
     if verbose {
-        println!("  ✓ Filtered {} / {} variants", total_stats.included, variants.len());
-        println!("\n[3/3] Writing MAF file...");
+        println!("\nStreaming Nirvana JSON, filtering, and writing MAF in batches of {}...", batch_size);
     }
 
-    // Write MAF file
+    let progress = if !quiet {
+        let pb = ProgressBar::new_spinner();
+        pb.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.green} [{elapsed_precise}] {msg}")
+                .unwrap(),
+        );
+        Some(pb)
+    } else {
+        None
+    };
+
     let mut writer = MAFWriter::new(output_path)?;
-    for record in &maf_records {
-        writer.write_record(record)?;
+    let mut total_stats = FilterStats::default();
+    let mut batch: Vec<VariantPosition> = Vec::with_capacity(batch_size);
+    let mut processed: u64 = 0;
+
+    let _header = parse_nirvana_streaming(input_path, |position| {
+        if let Some(variant_pos) = position_to_variant(position)? {
+            batch.push(variant_pos);
+        }
+
+        if batch.len() >= batch_size {
+            process_batch(&mut batch, config, &mut writer, &mut total_stats)?;
+            processed += batch_size as u64;
+            if let Some(pb) = &progress {
+                pb.set_message(format!(
+                    "{} variants processed, {} included",
+                    processed, total_stats.included
+                ));
+                pb.tick();
+            }
+        }
+
+        Ok(())
+    })?;
+
+    if !batch.is_empty() {
+        processed += batch.len() as u64;
+        process_batch(&mut batch, config, &mut writer, &mut total_stats)?;
     }
+
+    if let Some(pb) = progress {
+        pb.finish_with_message(format!(
+            "Done: {} variants processed, {} included",
+            processed, total_stats.included
+        ));
+    }
+
     writer.flush()?;
 
     if verbose {
-        println!("  ✓ Successfully wrote {} records to {}", total_stats.included, output_path);
+        println!(
+            "  ✓ Processed {} variants, wrote {} records to {}",
+            processed, total_stats.included, output_path
+        );
     }
 
     Ok(total_stats)

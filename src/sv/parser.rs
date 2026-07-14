@@ -1,4 +1,9 @@
-/// SV JSON parser using the same serde_json::Value approach as the SNV parser.
+/// SV JSON parser using the same per-position `serde_json::Value` extraction
+/// approach as before, but driven by a single-pass stream instead of a
+/// whole-file DOM. Each `positions[]` element is deserialized as its own
+/// small, bounded `Value` and dropped immediately after processing, so
+/// memory stays proportional to one SV record rather than the whole
+/// (potentially multi-GB decompressed) file.
 ///
 /// Key differences from SNV parsing:
 /// - Reads `svEnd` and `svLength` from position level (not inside variants)
@@ -6,12 +11,9 @@
 /// - Sample read support from `splitReadCounts` and `pairedEndReadCounts` (integer arrays)
 /// - Classifies SV type from altAllele string; skips BND (breakend) variants
 use anyhow::{Context, Result};
-use flate2::read::MultiGzDecoder;
 use serde_json::Value;
-use std::fs::File;
-use std::io::{BufReader, Write};
-use tempfile::NamedTempFile;
 
+use crate::json_stream::stream_positions;
 use crate::{NirvanaHeader, TranscriptAnnotation};
 use super::types::*;
 
@@ -19,49 +21,47 @@ use super::types::*;
 // Public entry point
 // ============================================================================
 
-pub fn parse_sv_nirvana_json(file_path: &str) -> Result<(NirvanaHeader, Vec<SVPosition>)> {
-    // Decompress to a temporary file (same strategy as SNV parser for reliability)
-    let temp_file = NamedTempFile::new().context("Failed to create temporary file")?;
-    let temp_json_path = temp_file.path();
+/// Streams `SVPosition` records straight out of the gzipped Nirvana SV JSON,
+/// one at a time. `on_position` is invoked once per surviving position
+/// (BND / unsupported-type positions are skipped, and per-position parse
+/// errors are logged and skipped, matching the previous behavior).
+pub fn parse_sv_nirvana_streaming<F>(file_path: &str, mut on_position: F) -> Result<NirvanaHeader>
+where
+    F: FnMut(SVPosition) -> Result<()>,
+{
+    // `header` and `positions` callbacks are both live for the duration of the
+    // stream, so `sample_name` needs interior mutability to be written by one
+    // and read by the other.
+    let sample_name = std::cell::RefCell::new(String::new());
 
-    let file = File::open(file_path)
-        .with_context(|| format!("Failed to open input file: {}", file_path))?;
-    let reader = BufReader::new(file);
-    let mut decoder = MultiGzDecoder::new(reader);
-
-    std::io::copy(&mut decoder, &mut temp_file.as_file())
-        .context("Failed to decompress file")?;
-    temp_file.as_file().flush().context("Failed to flush temp file")?;
-
-    let json_file = File::open(temp_json_path).context("Failed to open temporary JSON file")?;
-    let json_reader = BufReader::with_capacity(8 * 1024 * 1024, json_file);
-    let json: Value = serde_json::from_reader(json_reader).context("Failed to parse JSON")?;
-
-    let header: NirvanaHeader = serde_json::from_value(
-        json.get("header")
-            .ok_or_else(|| anyhow::anyhow!("No 'header' field in JSON"))?
-            .clone(),
-    )
-    .context("Failed to parse header")?;
-
-    let sample_name = header.samples.first().cloned().unwrap_or_default();
-
-    let positions_json = json
-        .get("positions")
-        .and_then(|p| p.as_array())
-        .ok_or_else(|| anyhow::anyhow!("No 'positions' array in JSON"))?;
-
-    let mut sv_positions = Vec::new();
-    for pos_json in positions_json {
-        match parse_sv_position(pos_json, &sample_name) {
-            Ok(Some(sv_pos)) => sv_positions.push(sv_pos),
-            Ok(None) => {}  // Skipped (BND or unsupported type)
-            Err(e) => {
-                log::warn!("Skipping position due to parse error: {}", e);
+    stream_positions::<Value, NirvanaHeader, _, _>(
+        file_path,
+        |header| {
+            *sample_name.borrow_mut() = header.samples.first().cloned().unwrap_or_default();
+            Ok(())
+        },
+        |pos_json: Value| {
+            match parse_sv_position(&pos_json, &sample_name.borrow()) {
+                Ok(Some(sv_pos)) => on_position(sv_pos)?,
+                Ok(None) => {} // Skipped (BND or unsupported type)
+                Err(e) => log::warn!("Skipping position due to parse error: {}", e),
             }
-        }
-    }
+            Ok(())
+        },
+    )
+    .context("Failed to parse SV JSON")
+}
 
+/// Convenience wrapper that collects every SV position into a `Vec`. Kept
+/// for callers that want the whole result at once; the CLI binary
+/// (`json2sv`) uses `parse_sv_nirvana_streaming` directly so it never has
+/// to hold every SV position in memory at once.
+pub fn parse_sv_nirvana_json(file_path: &str) -> Result<(NirvanaHeader, Vec<SVPosition>)> {
+    let mut sv_positions = Vec::new();
+    let header = parse_sv_nirvana_streaming(file_path, |sv_pos| {
+        sv_positions.push(sv_pos);
+        Ok(())
+    })?;
     Ok((header, sv_positions))
 }
 

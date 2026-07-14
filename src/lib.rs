@@ -1,5 +1,6 @@
 pub mod converter;
 pub mod filters;
+mod json_stream;
 pub mod parser;
 pub mod sv;
 pub mod types;
